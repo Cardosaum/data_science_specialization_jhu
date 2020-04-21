@@ -1,0 +1,11 @@
+---
+title: "DS specialization - JHU"
+author: "Matheus Cardoso"
+date: "April 21, 2020"
+output: html_document
+---
+
+# Overview
+
+This repo is for scripts created along DS specializaion by JHU on [coursera](https://www.coursera.org/specializations/jhu-data-science).
+
