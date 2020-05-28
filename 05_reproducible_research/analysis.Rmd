@@ -1,0 +1,76 @@
+---
+title: "Analysis of NOOA data <write better title>"
+subtitle: "Write a good subtitle"
+author: "Matheus Cardoso"
+date: "May 28, 2020"
+output: 
+  html_document: 
+    fig_caption: yes
+    highlight: tango
+    keep_md: yes
+    theme: cosmo
+    toc: yes
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, cache = TRUE, warning = FALSE)
+```
+
+## Data Processing
+
+Before starting even download the data, the enviroment is seted up.
+
+```{r}
+library(tidyverse)
+library(R.utils)
+```
+To perform this analysis, the data is downloaded from the coursera's [course project](https://www.coursera.org/learn/reproducible-research/peer/OMZ37/course-project-2).
+Dataset is saved in `data/storm_data.csv.bz2`, and extracted to `data/storm_data.csv`.
+Also, two files that contain explanation about the data are downloaded and save as
+`data/storm_data_documentation.pdf` and 
+`data/storm_data_faq.pdf`.
+
+```{r}
+# set paths and urls
+stormdata_url      <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2"
+stormdata_path     <- "data/stormdata_csv.bz2"
+stormdata_doc_url  <- "https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf"
+stormdata_doc_path <- "data/storm_data_documentation.pdf"
+stormdata_faq_url  <- "https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2FNCDC%20Storm%20Events-FAQ%20Page.pdf"
+stormdata_faq_path <- "data/storm_data_faq.pdf"
+
+# create ./data folder if it does not exists yet.
+if (!dir.exists(dirname(stormdata_path))) {
+    dir.create(dirname(stormdata_path))
+}
+
+# download data file if it is not yet in disk
+if (!file.exists(stormdata_path)) {
+    download.file(stormdata_url, stormdata_path, "curl")
+}
+
+# download documentation file if it is not yet in disk
+if (!file.exists(stormdata_doc_path)) {
+    download.file(stormdata_doc_url, stormdata_doc_path, "curl")
+}
+
+# download FAQ file if it is not yet in disk
+if (!file.exists(stormdata_faq_path)) {
+    download.file(stormdata_faq_url, stormdata_faq_path, "curl")
+}
+
+# after download, data is extracted
+stormdata_file <- "data/stormdata_csv"
+if (!file.exists(stormdata_file)) {
+   bunzip2(filename = stormdata_path,
+           destname = stormdata_file,
+           remove   = FALSE) 
+}
+```
+
+After download, data is loaded into `R` session.
+
+```{r}
+```
