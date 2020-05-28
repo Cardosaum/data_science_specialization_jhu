@@ -1,0 +1,17 @@
+---
+title: "Reproducible Research - Course Project"
+author: "Matheus Cardoso"
+date: "May 28, 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, cache = TRUE)
+```
+
+## Introduction
+
+This Directory contain all code and data created in order to submit the Project Assignment for the fifth course in the Data Science specialization track in [Coursera](https://www.coursera.org/specializations/jhu-data-science).
+
+
+# TODO: create all needed information to this directory after create the `Rmd` file asked to project assignment.
