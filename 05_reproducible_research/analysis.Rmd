@@ -24,6 +24,7 @@ Before starting even download the data, the enviroment is seted up.
 
 ```{r}
 library(tidyverse)
+library(data.table)
 library(R.utils)
 ```
 To perform this analysis, the data is downloaded from the coursera's [course project](https://www.coursera.org/learn/reproducible-research/peer/OMZ37/course-project-2).
@@ -35,7 +36,7 @@ Also, two files that contain explanation about the data are downloaded and save 
 ```{r}
 # set paths and urls
 stormdata_url      <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2"
-stormdata_path     <- "data/stormdata_csv.bz2"
+stormdata_path     <- "data/stormdata.csv.bz2"
 stormdata_doc_url  <- "https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf"
 stormdata_doc_path <- "data/storm_data_documentation.pdf"
 stormdata_faq_url  <- "https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2FNCDC%20Storm%20Events-FAQ%20Page.pdf"
@@ -62,7 +63,7 @@ if (!file.exists(stormdata_faq_path)) {
 }
 
 # after download, data is extracted
-stormdata_file <- "data/stormdata_csv"
+stormdata_file <- "data/stormdata.csv"
 if (!file.exists(stormdata_file)) {
    bunzip2(filename = stormdata_path,
            destname = stormdata_file,
@@ -73,4 +74,24 @@ if (!file.exists(stormdata_file)) {
 After download, data is loaded into `R` session.
 
 ```{r}
+# basic EDA
+df <- read_csv(stormdata_file,
+    trim_ws = TRUE,
+    col_types = cols_only(
+        STATE      = "c",
+        EVTYPE     = "c",
+        FATALITIES = "d",
+        INJURIES   = "d",
+        PROPDMG    = "d",
+        PROPDMGEXP = "c",
+        CROPDMG    = "d",
+        CROPDMGEXP = "c"))
+
+df <- df %>% group_by(EVTYPE)
+
+df_summary <- df %>% summarise(health = sum(FATALITIES, INJURIES)) %>% arrange(desc(health))
+
+df_summary
+a <- df_summary[1:10, ]
+ggplot(a) + geom_bar(aes(str_to_lower(EVTYPE), weight = health))
 ```
