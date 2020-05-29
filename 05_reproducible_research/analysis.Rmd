@@ -91,7 +91,36 @@ df <- df %>% group_by(EVTYPE)
 
 df_summary <- df %>% summarise(health = sum(FATALITIES, INJURIES)) %>% arrange(desc(health))
 
-df_summary
-a <- df_summary[1:10, ]
-ggplot(a) + geom_bar(aes(str_to_lower(EVTYPE), weight = health))
+write_rds(df, "data/parsed_df.rds")
+
+a <- read_rds("data/parsed_df.rds")
+# df_summary
+# a <- df_summary[1:10, ]
+# ggplot(a) + geom_bar(aes(str_to_lower(EVTYPE), weight = health)) + theme(axis.text.x = element_text(angle = 90))
+```
+
+process the data to find common event types
+
+```{r}
+
+common_types = c("hail", "wind", "flood", "lightning", "snow",
+                 "rain", "storm", "weather", "cloud", "waterspout",
+                 "wildfire", "blizzard", "drought", "heat", "tornado",
+                 "hurricane", "cold", "freeze", "fog", "stream",
+                 "fire", "funnel", "glaze", "temperature")
+ham <- df
+for (i in common_types) {
+    if (! "type" %in% colnames(ham)) {
+        ham <- add_column(ham, type = NA)
+    }
+    ham <- mutate(ham, type = ifelse(str_detect(str_to_lower(EVTYPE), glue::glue(".*{i}.*")), glue::glue("{i}"), type))
+}
+# df %>% mutate(type = ifelse(str_detect(str_to_lower(EVTYPE), ".*wind.*"), "wind", str_to_lower(EVTYPE)))
+# df %>% mutate(type = ifelse(str_detect(str_to_lower(EVTYPE), ".*wind.*"), "wind", str_to_lower(EVTYPE)))
+# df %>% count(EVTYPE) %>% arrange(desc(n))
+
+
+spham <- ham %>% group_by(type) %>% summarise(health = sum(FATALITIES, INJURIES)) %>% arrange(desc(health))
+
+ggplot(spham) + geom_bar(aes(str_to_lower(type), weight = health)) + theme(axis.text.x = element_text(angle = 90)) + scale_x_discrete(limits = spham$type)
 ```
