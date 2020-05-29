@@ -6,9 +6,9 @@ date: "May 28, 2020"
 output: 
   html_document: 
     fig_caption: yes
-    highlight: tango
+    highlight: zenburn
     keep_md: yes
-    theme: cosmo
+    theme: spacelab
     toc: yes
 editor_options: 
   chunk_output_type: console
@@ -23,9 +23,9 @@ knitr::opts_chunk$set(echo = TRUE, cache = TRUE, warning = FALSE)
 Before starting even download the data, the enviroment is seted up.
 
 ```{r}
-library(tidyverse)
-library(data.table)
-library(R.utils)
+library(tidyverse, quietly = T)
+library(data.table, quietly = T)
+library(R.utils, quietly = T)
 ```
 To perform this analysis, the data is downloaded from the coursera's [course project](https://www.coursera.org/learn/reproducible-research/peer/OMZ37/course-project-2).
 Dataset is saved in `data/storm_data.csv.bz2`, and extracted to `data/storm_data.csv`.
@@ -72,28 +72,70 @@ if (!file.exists(stormdata_file)) {
 ```
 
 After download, data is loaded into `R` session.
+I opted to create a binary file in `.rds` format to avoid parse the raw `.csv` file every time.
+This file is located at `data/stormdata.rds`
 
 ```{r}
-# basic EDA
-df <- read_csv(stormdata_file,
-    trim_ws = TRUE,
-    col_types = cols_only(
-        STATE      = "c",
-        EVTYPE     = "c",
-        FATALITIES = "d",
-        INJURIES   = "d",
-        PROPDMG    = "d",
-        PROPDMGEXP = "c",
-        CROPDMG    = "d",
-        CROPDMGEXP = "c"))
+# Load data
 
-df <- df %>% group_by(EVTYPE)
+## check if the parsed binary exists.
+## If doesn't exist, parse raw data
+stormdata_parsed <- "data/stormdata.rds"
 
-df_summary <- df %>% summarise(health = sum(FATALITIES, INJURIES)) %>% arrange(desc(health))
+if(!file.exists(stormdata_parsed)) {
+    storm <- read_csv(stormdata_file,
+        trim_ws = TRUE,
+        col_types = cols_only(
+            STATE      = "c",
+            EVTYPE     = "c",
+            FATALITIES = "d",
+            INJURIES   = "d",
+            PROPDMG    = "d",
+            PROPDMGEXP = "c",
+            CROPDMG    = "d",
+            CROPDMGEXP = "c"))
+    write_rds(storm, stormdata_parsed)
+} else {
+    storm <- read_rds(stormdata_parsed)
+}
+```
 
-write_rds(df, "data/parsed_df.rds")
+```{r}
+# adjust columns
+# a <- storm %>% select(ends_with("EXP"))
+# a$PROPDMGEXP %>% unique()
+# a$CROPDMGEXP %>% unique()
+# a %>% filter(str_detect(str_to_lower(PROPDMGEXP), "k|m|b"))
+# a %>% filter(!str_detect(str_to_lower(PROPDMGEXP), "k|m|b"))
+# a %>% filter(is.na(PROPDMGEXP))
+# nrow(a)
+# 
+# storm %>% transmute(prop = if_else(str_detect(str_to_lower(PROPDMGEXP), "k"), "1000", PROPDMGEXP))
+# 
+# mutate(a, pr = as.numeric(a$prop) * storm$PROPDMG)
 
-a <- read_rds("data/parsed_df.rds")
+for (i in seq_len(nrow(storm))) {
+    ex <- NA
+    if (str_to_lower(storm[i, ]$PROPDMGEXP) == "k") {ex <- 3}
+    else if (str_to_lower(storm[i, ]$PROPDMGEXP) == "m") {ex <- 6}
+    else if (str_to_lower(storm[i, ]$PROPDMGEXP) == "b") {ex <- 9}
+    else if (str_to_lower(storm[i, ]$PROPDMGEXP) %>%
+             as.numeric() %>%
+             is.na() %>%
+             isFALSE()) {ex <- as.numeric(storm[i, ]$PROPDMGEXP)}
+    storm[i, ]$PROPDMGEXP <- ex
+}
+```
+
+```{r}
+# some EDA
+# df <- df %>% group_by(EVTYPE)
+
+# df_summary <- df %>% summarise(health = sum(FATALITIES, INJURIES)) %>% arrange(desc(health))
+# 
+# write_rds(df, "data/parsed_df.rds")
+# 
+# a <- read_rds("data/parsed_df.rds")
 # df_summary
 # a <- df_summary[1:10, ]
 # ggplot(a) + geom_bar(aes(str_to_lower(EVTYPE), weight = health)) + theme(axis.text.x = element_text(angle = 90))
@@ -108,7 +150,7 @@ common_types = c("hail", "wind", "flood", "lightning", "snow",
                  "wildfire", "blizzard", "drought", "heat", "tornado",
                  "hurricane", "cold", "freeze", "fog", "stream",
                  "fire", "funnel", "glaze", "temperature")
-ham <- df
+ham <- storm
 for (i in common_types) {
     if (! "type" %in% colnames(ham)) {
         ham <- add_column(ham, type = NA)
