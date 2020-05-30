@@ -20,6 +20,8 @@ knitr::opts_chunk$set(echo = TRUE, cache = TRUE, warning = FALSE, message = FALS
 
 ## Synopsis
 
+With scarce resources, it is important to make the right decisions at strategic points in order to minimize impacts on the population and the economy.
+This study aims to guide public managers on which natural phenomena have the potential to cause the greatest disturbance in the society, in order to take measures to mitigate the impact on it. 
 
 
 ## Data Processing
