@@ -20,9 +20,11 @@ knitr::opts_chunk$set(echo = TRUE, cache = TRUE, warning = FALSE, message = FALS
 
 ## Synopsis
 
+
+
 ## Data Processing
 
-Before starting even download the data, the enviroment is seted up.
+Before even starting to download the data, the environment is configured.
 
 ```{r load_libraries}
 library(tidyverse)
