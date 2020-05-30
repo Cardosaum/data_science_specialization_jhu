@@ -15,7 +15,7 @@ editor_options:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, cache = TRUE, warning = FALSE)
+knitr::opts_chunk$set(echo = TRUE, cache = TRUE, warning = FALSE, message = FALSE)
 ```
 
 ## Data Processing
@@ -23,9 +23,10 @@ knitr::opts_chunk$set(echo = TRUE, cache = TRUE, warning = FALSE)
 Before starting even download the data, the enviroment is seted up.
 
 ```{r}
-library(tidyverse, quietly = T)
-library(data.table, quietly = T)
-library(R.utils, quietly = T)
+library(tidyverse)
+library(magrittr)
+library(data.table)
+library(R.utils)
 ```
 To perform this analysis, the data is downloaded from the coursera's [course project](https://www.coursera.org/learn/reproducible-research/peer/OMZ37/course-project-2).
 Dataset is saved in `data/storm_data.csv.bz2`, and extracted to `data/storm_data.csv`.
@@ -100,34 +101,37 @@ if(!file.exists(stormdata_parsed)) {
 }
 ```
 
-```{r}
-# adjust columns
-# a <- storm %>% select(ends_with("EXP"))
-# a$PROPDMGEXP %>% unique()
-# a$CROPDMGEXP %>% unique()
-# a %>% filter(str_detect(str_to_lower(PROPDMGEXP), "k|m|b"))
-# a %>% filter(!str_detect(str_to_lower(PROPDMGEXP), "k|m|b"))
-# a %>% filter(is.na(PROPDMGEXP))
-# nrow(a)
-# 
-# storm %>% transmute(prop = if_else(str_detect(str_to_lower(PROPDMGEXP), "k"), "1000", PROPDMGEXP))
-# 
-# mutate(a, pr = as.numeric(a$prop) * storm$PROPDMG)
 
-for (i in seq_len(nrow(storm))) {
-    ex <- NA
-    if (str_to_lower(storm[i, ]$PROPDMGEXP) == "k") {ex <- 3}
-    else if (str_to_lower(storm[i, ]$PROPDMGEXP) == "m") {ex <- 6}
-    else if (str_to_lower(storm[i, ]$PROPDMGEXP) == "b") {ex <- 9}
-    else if (str_to_lower(storm[i, ]$PROPDMGEXP) %>%
-             as.numeric() %>%
-             is.na() %>%
-             isFALSE()) {ex <- as.numeric(storm[i, ]$PROPDMGEXP)}
-    storm[i, ]$PROPDMGEXP <- ex
-}
+After load data, the colunms are modified to a more tidy format.
+In this dataset, suffix like `K`, `M` and `B` where used to express expoents.
+`r 1E3`, `r 1E6` and `r 1E9` respectively.
+
+```{r}
+storm %<>% mutate(PROPDMGEXP = case_when(str_to_lower(PROPDMGEXP) == "k" ~ 1E3,
+                                        str_to_lower(PROPDMGEXP) == "m" ~ 1E6,
+                                        str_to_lower(PROPDMGEXP) == "b" ~ 1E9,
+                                        str_detect(
+                                            str_to_lower(PROPDMGEXP), "^[0-9]$") ~ 10^as.numeric(PROPDMGEXP)))
+                                        
+storm %<>% mutate(CROPDMGEXP = case_when(str_to_lower(CROPDMGEXP) == "k" ~ 1E3,
+                                        str_to_lower(CROPDMGEXP) == "m" ~ 1E6,
+                                        str_to_lower(CROPDMGEXP) == "b" ~ 1E9,
+                                        str_detect(
+                                            str_to_lower(CROPDMGEXP), "^[0-9]$") ~ 10^as.numeric(CROPDMGEXP)))
+                                        
+storm %<>%
+    mutate(PROPDMG = PROPDMG * PROPDMGEXP,
+                 CROPDMG = CROPDMG * CROPDMGEXP) %>% 
+    select(-ends_with("EXP"))
 ```
 
-```{r}
+After processing, the dataframe looks like this:
+
+```{r storm_table, include=T, echo=F}
+knitr::kable(head(storm), caption = "A tidy dataframe", booktabs = TRUE)
+```
+
+```{r eval=F, include=F}
 # some EDA
 # df <- df %>% group_by(EVTYPE)
 
@@ -143,7 +147,7 @@ for (i in seq_len(nrow(storm))) {
 
 process the data to find common event types
 
-```{r}
+```{r eval=TRUE, include=TRUE}
 
 common_types = c("hail", "wind", "flood", "lightning", "snow",
                  "rain", "storm", "weather", "cloud", "waterspout",
