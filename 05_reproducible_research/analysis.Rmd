@@ -21,7 +21,7 @@ knitr::opts_chunk$set(echo = TRUE, cache = TRUE, warning = FALSE, message = FALS
 ## Synopsis
 
 With scarce resources, it is important to make the right decisions at strategic points in order to minimize impacts on the population and the economy.
-This study aims to guide public managers on which natural phenomena have the potential to cause the greatest disturbance in the society, in order to take measures to mitigate the impact on it. 
+This study aims to guide public managers on which natural phenomena have the potential to cause the greatest disturbance in the society, in order to take measures to mitigate negative effects on it. 
 
 
 ## Data Processing
@@ -165,8 +165,6 @@ set.seed(2)
 storm_sample <- storm %>% group_by(EVTYPE) %>% sample_n(1)
 knitr::kable(head(storm_sample, n = num_of_factors), booktabs = TRUE)
 ```
-
-process the data to find common event types
 
 ```{r eval=FALSE, include=FALSE}
 
