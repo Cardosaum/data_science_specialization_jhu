@@ -8,7 +8,7 @@ output:
     fig_caption: yes
     highlight: zenburn
     keep_md: yes
-    theme: spacelab
+    theme: simplex
     toc: yes
 editor_options: 
   chunk_output_type: console
