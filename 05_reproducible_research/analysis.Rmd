@@ -18,11 +18,13 @@ editor_options:
 knitr::opts_chunk$set(echo = TRUE, cache = TRUE, warning = FALSE, message = FALSE)
 ```
 
-## Data Processing
+# Synopsis
+
+# Data Processing
 
 Before starting even download the data, the enviroment is seted up.
 
-```{r}
+```{r load_libraries}
 library(tidyverse)
 library(magrittr)
 library(data.table)
@@ -34,7 +36,7 @@ Also, two files that contain explanation about the data are downloaded and save 
 `data/storm_data_documentation.pdf` and 
 `data/storm_data_faq.pdf`.
 
-```{r}
+```{r download_files}
 # set paths and urls
 stormdata_url      <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2"
 stormdata_path     <- "data/stormdata.csv.bz2"
@@ -76,7 +78,7 @@ After download, data is loaded into `R` session.
 I opted to create a binary file in `.rds` format to avoid parse the raw `.csv` file every time.
 This file is located at `data/stormdata.rds`
 
-```{r}
+```{r load_data}
 # Load data
 
 ## check if the parsed binary exists.
@@ -106,7 +108,8 @@ After load data, the colunms are modified to a more tidy format.
 In this dataset, suffix like `K`, `M` and `B` where used to express expoents.
 `r 1E3`, `r 1E6` and `r 1E9` respectively.
 
-```{r}
+```{r process_data}
+# map `k`, `m` and `b` to powers of ten
 storm %<>% mutate(PROPDMGEXP = case_when(str_to_lower(PROPDMGEXP) == "k" ~ 1E3,
                                         str_to_lower(PROPDMGEXP) == "m" ~ 1E6,
                                         str_to_lower(PROPDMGEXP) == "b" ~ 1E9,
@@ -118,53 +121,68 @@ storm %<>% mutate(CROPDMGEXP = case_when(str_to_lower(CROPDMGEXP) == "k" ~ 1E3,
                                         str_to_lower(CROPDMGEXP) == "b" ~ 1E9,
                                         str_detect(
                                             str_to_lower(CROPDMGEXP), "^[0-9]$") ~ 10^as.numeric(CROPDMGEXP)))
-                                        
+
+# transform `PROPDMG` and `CROPDMG` to actual values in dollar
 storm %<>%
     mutate(PROPDMG = PROPDMG * PROPDMGEXP,
                  CROPDMG = CROPDMG * CROPDMGEXP) %>% 
     select(-ends_with("EXP"))
+
+# map event types to actual factors
+storm %<>% mutate(event = case_when(str_detect(str_to_upper(EVTYPE), "HAIL") ~ "HAIL",
+                                     str_detect(str_to_upper(EVTYPE), "WIND") ~ "WIND",
+                                     str_detect(str_to_upper(EVTYPE), "TORNADO") ~ "TORNADO",
+                                     str_detect(str_to_upper(EVTYPE), "HURRICANE") ~ "HURRICANE",
+                                     str_detect(str_to_upper(EVTYPE), "TYPHOON") ~ "TYPHOON",
+                                     str_detect(str_to_upper(EVTYPE), "FLOOD") ~ "FLOOD",
+                                     str_detect(str_to_upper(EVTYPE), "LIGHTNING") ~ "LIGHTNING",
+                                     str_detect(str_to_upper(EVTYPE), "SNOW|BLIZZARD|ICE") ~ "SNOW",
+                                     str_detect(str_to_upper(EVTYPE), "STORM|RAIN") ~ "STORM",
+                                     str_detect(str_to_upper(EVTYPE), "CLOUD|FOG|SMOKE") ~ "CLOUD",
+                                     str_detect(str_to_upper(EVTYPE), "WATERSPOUT") ~ "WATERSPOUT",
+                                     str_detect(str_to_upper(EVTYPE), "STREAM") ~ "STREAM",
+                                     str_detect(str_to_upper(EVTYPE), "GLAZE") ~ "GLAZE",
+                                     str_detect(str_to_upper(EVTYPE), "FUNNEL") ~ "FUNNEL",
+                                     str_detect(str_to_upper(EVTYPE), "VOLCAN") ~ "VOLCANO",
+                                     str_detect(str_to_upper(EVTYPE), "FIRE") ~ "FIRE",
+                                     str_detect(str_to_upper(EVTYPE), "DROUGHT|DUST DEVIL") ~ "DROUGHT",
+                                     str_detect(str_to_upper(EVTYPE), "HEAT") ~ "HEAT",
+                                     str_detect(str_to_upper(EVTYPE), "COLD|FREEZE") ~ "COLD",
+                                     str_detect(str_to_upper(EVTYPE), "WEATHER") ~ "WEATHER")) %>% 
+    mutate(EVTYPE = factor(event)) %>% 
+    select(-"event")
 ```
 
 After processing, the dataframe looks like this:
 
-```{r storm_table, include=T, echo=F}
-knitr::kable(head(storm), caption = "A tidy dataframe", booktabs = TRUE)
-```
-
-```{r eval=F, include=F}
-# some EDA
-# df <- df %>% group_by(EVTYPE)
-
-# df_summary <- df %>% summarise(health = sum(FATALITIES, INJURIES)) %>% arrange(desc(health))
-# 
-# write_rds(df, "data/parsed_df.rds")
-# 
-# a <- read_rds("data/parsed_df.rds")
-# df_summary
-# a <- df_summary[1:10, ]
-# ggplot(a) + geom_bar(aes(str_to_lower(EVTYPE), weight = health)) + theme(axis.text.x = element_text(angle = 90))
+```{r storm_table, include=TRUE, echo=TRUE}
+num_of_factors <- storm$EVTYPE %>% unique() %>% length()
+set.seed(2)
+storm_sample <- storm %>% group_by(EVTYPE) %>% sample_n(1)
+knitr::kable(head(storm_sample, n = num_of_factors), booktabs = TRUE)
 ```
 
 process the data to find common event types
 
-```{r eval=TRUE, include=TRUE}
+```{r eval=FALSE, include=FALSE}
 
-common_types = c("hail", "wind", "flood", "lightning", "snow",
-                 "rain", "storm", "weather", "cloud", "waterspout",
-                 "wildfire", "blizzard", "drought", "heat", "tornado",
-                 "hurricane", "cold", "freeze", "fog", "stream",
-                 "fire", "funnel", "glaze", "temperature")
-ham <- storm
-for (i in common_types) {
-    if (! "type" %in% colnames(ham)) {
-        ham <- add_column(ham, type = NA)
-    }
-    ham <- mutate(ham, type = ifelse(str_detect(str_to_lower(EVTYPE), glue::glue(".*{i}.*")), glue::glue("{i}"), type))
-}
-# df %>% mutate(type = ifelse(str_detect(str_to_lower(EVTYPE), ".*wind.*"), "wind", str_to_lower(EVTYPE)))
-# df %>% mutate(type = ifelse(str_detect(str_to_lower(EVTYPE), ".*wind.*"), "wind", str_to_lower(EVTYPE)))
-# df %>% count(EVTYPE) %>% arrange(desc(n))
 
+
+
+storm %>% filter(ev == "WIND") 
+
+
+nm <- storm %>% filter(is.na(ev))
+nrow(nm) / nrow(storm) * 100
+resu <- storm %>% group_by(ev) %>% summarise(health = sum(FATALITIES, INJURIES, na.rm = T), economy = sum(PROPDMG, CROPDMG, na.rm = T)) %>% arrange(desc(health), desc(economy)) %>% mutate(ev = factor(ev))
+
+ggplot(head(resu)) + geom_point(aes(health, economy, color = ev))
+
+ggplot(head(resu, n = 10)) + geom_bar(aes(ev, weight = health, fill = ev)) + theme(axis.text.x = element_text(angle = 90)) + scale_x_discrete(limits = head(resu$ev, n = 10))
+
+res <- arrange(resu, desc(economy), desc(health))
+
+ggplot(head(res, n = 10)) + geom_bar(aes(ev, weight = economy, fill = ev)) + theme(axis.text.x = element_text(angle = 90)) + scale_x_discrete(limits = head(res$ev, n = 10))
 
 spham <- ham %>% group_by(type) %>% summarise(health = sum(FATALITIES, INJURIES)) %>% arrange(desc(health))
 
