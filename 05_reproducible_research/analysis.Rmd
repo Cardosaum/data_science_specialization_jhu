@@ -1,6 +1,6 @@
 ---
-title: "Analysis of NOOA data <write better title>"
-subtitle: "Write a good subtitle"
+title: "Analysis of NOOA data"
+subtitle: "How does natural phenomena influence Health and Wealth in the US?"
 author: "Matheus Cardoso"
 date: "May 28, 2020"
 output: 
@@ -18,9 +18,9 @@ editor_options:
 knitr::opts_chunk$set(echo = TRUE, cache = TRUE, warning = FALSE, message = FALSE)
 ```
 
-# Synopsis
+## Synopsis
 
-# Data Processing
+## Data Processing
 
 Before starting even download the data, the enviroment is seted up.
 
@@ -188,3 +188,5 @@ spham <- ham %>% group_by(type) %>% summarise(health = sum(FATALITIES, INJURIES)
 
 ggplot(spham) + geom_bar(aes(str_to_lower(type), weight = health)) + theme(axis.text.x = element_text(angle = 90)) + scale_x_discrete(limits = spham$type)
 ```
+
+## Results
