@@ -34,11 +34,14 @@ library(magrittr)
 library(data.table)
 library(R.utils)
 ```
+
+
 To perform this analysis, the data is downloaded from the coursera's [course project](https://www.coursera.org/learn/reproducible-research/peer/OMZ37/course-project-2).
 Dataset is saved in `data/storm_data.csv.bz2`, and extracted to `data/storm_data.csv`.
 Also, two files that contain explanation about the data are downloaded and save as
 `data/storm_data_documentation.pdf` and 
 `data/storm_data_faq.pdf`.
+
 
 ```{r download_files}
 # set paths and urls
@@ -133,11 +136,16 @@ storm %<>%
     select(-ends_with("EXP"))
 
 # map event types to actual factors
-storm %<>% mutate(event = case_when(str_detect(str_to_upper(EVTYPE), "HAIL") ~ "HAIL",
-                                     str_detect(str_to_upper(EVTYPE), "WIND") ~ "WIND",
+storm %<>% mutate(ev = case_when(str_detect(str_to_upper(EVTYPE), "HAIL") ~ "HAIL",
+                                     str_detect(str_to_upper(EVTYPE), "BURST") ~ "MICROBURST",
+                                     str_detect(str_to_upper(EVTYPE), "AVALANCHE") ~ "AVALANCHE",
+                                     str_detect(str_to_upper(EVTYPE), "DAM ") ~ "DAM BREAK",
                                      str_detect(str_to_upper(EVTYPE), "TORNADO") ~ "TORNADO",
                                      str_detect(str_to_upper(EVTYPE), "HURRICANE") ~ "HURRICANE",
                                      str_detect(str_to_upper(EVTYPE), "TYPHOON") ~ "TYPHOON",
+                                     str_detect(str_to_upper(EVTYPE), "SURF") ~ "HIGH SURF",
+                                     str_detect(str_to_upper(EVTYPE), "LANDSLIDE|MUDSLIDE") ~ "LANDSLIDE",
+                                     str_detect(str_to_upper(EVTYPE), "TSUNAMI") ~ "TSUNAMI",
                                      str_detect(str_to_upper(EVTYPE), "FLOOD") ~ "FLOOD",
                                      str_detect(str_to_upper(EVTYPE), "LIGHTNING") ~ "LIGHTNING",
                                      str_detect(str_to_upper(EVTYPE), "SNOW|BLIZZARD|ICE") ~ "SNOW",
@@ -149,12 +157,15 @@ storm %<>% mutate(event = case_when(str_detect(str_to_upper(EVTYPE), "HAIL") ~ "
                                      str_detect(str_to_upper(EVTYPE), "FUNNEL") ~ "FUNNEL",
                                      str_detect(str_to_upper(EVTYPE), "VOLCAN") ~ "VOLCANO",
                                      str_detect(str_to_upper(EVTYPE), "FIRE") ~ "FIRE",
+                                     str_detect(str_to_upper(EVTYPE), "TIDE") ~ "TIDE",
                                      str_detect(str_to_upper(EVTYPE), "DROUGHT|DUST DEVIL") ~ "DROUGHT",
                                      str_detect(str_to_upper(EVTYPE), "HEAT") ~ "HEAT",
                                      str_detect(str_to_upper(EVTYPE), "COLD|FREEZE") ~ "COLD",
+                                     str_detect(str_to_upper(EVTYPE), "WIND") ~ "WIND",
                                      str_detect(str_to_upper(EVTYPE), "WEATHER") ~ "WEATHER")) %>% 
-    mutate(EVTYPE = factor(event)) %>% 
-    select(-"event")
+    mutate(ev = factor(ev)) %>% 
+    group_by(ev) %>% 
+    arrange(desc(FATALITIES), desc(INJURIES), desc(PROPDMG), desc(CROPDMG))
 ```
 
 After processing, the dataframe looks like this:
@@ -166,29 +177,18 @@ storm_sample <- storm %>% group_by(EVTYPE) %>% sample_n(1)
 knitr::kable(head(storm_sample, n = num_of_factors), booktabs = TRUE)
 ```
 
+## Results
+
 ```{r eval=FALSE, include=FALSE}
 
 
+g <- ggplot(storm, aes(ev)) + theme(axis.text.x = element_text(angle = 90))
 
+g + geom_bar(aes(weight = FATALITIES))
 
-storm %>% filter(ev == "WIND") 
-
-
-nm <- storm %>% filter(is.na(ev))
-nrow(nm) / nrow(storm) * 100
-resu <- storm %>% group_by(ev) %>% summarise(health = sum(FATALITIES, INJURIES, na.rm = T), economy = sum(PROPDMG, CROPDMG, na.rm = T)) %>% arrange(desc(health), desc(economy)) %>% mutate(ev = factor(ev))
-
-ggplot(head(resu)) + geom_point(aes(health, economy, color = ev))
-
-ggplot(head(resu, n = 10)) + geom_bar(aes(ev, weight = health, fill = ev)) + theme(axis.text.x = element_text(angle = 90)) + scale_x_discrete(limits = head(resu$ev, n = 10))
-
-res <- arrange(resu, desc(economy), desc(health))
-
-ggplot(head(res, n = 10)) + geom_bar(aes(ev, weight = economy, fill = ev)) + theme(axis.text.x = element_text(angle = 90)) + scale_x_discrete(limits = head(res$ev, n = 10))
+ggplot(storm) + geom_bar(aes(event, weight = economy, fill = ev)) + theme(axis.text.x = element_text(angle = 90)) + scale_x_discrete(limits = head(res$ev, n = 10))
 
 spham <- ham %>% group_by(type) %>% summarise(health = sum(FATALITIES, INJURIES)) %>% arrange(desc(health))
 
 ggplot(spham) + geom_bar(aes(str_to_lower(type), weight = health)) + theme(axis.text.x = element_text(angle = 90)) + scale_x_discrete(limits = spham$type)
 ```
-
-## Results
