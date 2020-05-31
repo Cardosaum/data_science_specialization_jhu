@@ -15,7 +15,7 @@ editor_options:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, cache = TRUE, warning = FALSE, message = FALSE)
+knitr::opts_chunk$set(echo = TRUE, include = TRUE, cache = TRUE, warning = FALSE, message = FALSE)
 ```
 
 ## Synopsis
@@ -148,13 +148,12 @@ storm %<>% mutate(ev = case_when(str_detect(str_to_upper(EVTYPE), "HAIL") ~ "HAI
                                      str_detect(str_to_upper(EVTYPE), "SURF") ~ "HIGH SURF",
                                      str_detect(str_to_upper(EVTYPE), "LANDSLIDE|MUDSLIDE") ~ "LANDSLIDE",
                                      str_detect(str_to_upper(EVTYPE), "TSUNAMI") ~ "TSUNAMI",
-                                     str_detect(str_to_upper(EVTYPE), "FLOOD") ~ "FLOOD",
+                                     str_detect(str_to_upper(EVTYPE), "FLOOD|STREAM") ~ "FLOOD",
                                      str_detect(str_to_upper(EVTYPE), "LIGHTNING") ~ "LIGHTNING",
                                      str_detect(str_to_upper(EVTYPE), "SNOW|BLIZZARD|ICE") ~ "SNOW",
                                      str_detect(str_to_upper(EVTYPE), "STORM|RAIN") ~ "STORM",
                                      str_detect(str_to_upper(EVTYPE), "CLOUD|FOG|SMOKE") ~ "CLOUD",
                                      str_detect(str_to_upper(EVTYPE), "WATERSPOUT") ~ "WATERSPOUT",
-                                     str_detect(str_to_upper(EVTYPE), "STREAM") ~ "STREAM",
                                      str_detect(str_to_upper(EVTYPE), "GLAZE") ~ "GLAZE",
                                      str_detect(str_to_upper(EVTYPE), "FUNNEL") ~ "FUNNEL",
                                      str_detect(str_to_upper(EVTYPE), "VOLCAN") ~ "VOLCANO",
@@ -165,31 +164,23 @@ storm %<>% mutate(ev = case_when(str_detect(str_to_upper(EVTYPE), "HAIL") ~ "HAI
                                      str_detect(str_to_upper(EVTYPE), "COLD|FREEZE") ~ "COLD",
                                      str_detect(str_to_upper(EVTYPE), "WIND") ~ "WIND",
                                      str_detect(str_to_upper(EVTYPE), "WEATHER") ~ "WEATHER")) %>% 
-    mutate(ev = factor(ev)) %>% 
+    mutate(ev = factor(str_to_title(ev))) %>% 
     group_by(ev) %>% 
     arrange(desc(FATALITIES), desc(INJURIES), desc(PROPDMG), desc(CROPDMG))
 ```
 
 After processing, the dataframe looks like this:
 
-```{r storm_table, include=TRUE, echo=TRUE}
-num_of_factors <- storm$EVTYPE %>% unique() %>% length()
+```{r storm_table}
+num_of_factors <- storm$ev %>% unique() %>% length()
 set.seed(2)
-storm_sample <- storm %>% group_by(EVTYPE) %>% sample_n(1)
+storm_sample <- storm %>% group_by(ev) %>% sample_n(1)
 knitr::kable(head(storm_sample, n = num_of_factors), booktabs = TRUE)
 ```
 
 ## Results
 
-```{r eval=FALSE, include=FALSE}
-
-
-storm %>% 
-    group_by(ev) %>% 
-    summarise(total = n()) %>% 
-    arrange(-total) %>% 
-    mutate(e = factor(ev, ev)) %>% 
-    head(n = 5)
+```{r panel_plot1}
 
 storm_plot_subset <- storm %>% 
                         group_by(ev) %>% 
@@ -205,53 +196,56 @@ plot_total_propdmg <- storm_plot_subset %>%
                         arrange(-PROPDMG) %>% 
                         mutate(e = factor(ev, ev)) %>% 
                         ggplot(aes(x = e, y = PROPDMG, fill = e)) +
-                            theme(axis.text.x = element_text(angle = 90)) +
+                            theme(axis.text.x = element_text(angle = 90),
+                                  legend.position = "none") +
+                            labs(x = "",
+                                 y = "Total Property Damage (in dollars)",
+                                 fill = "") +
                             geom_bar(stat = "identity") 
 
 plot_total_cropdmg <- storm_plot_subset %>% 
                         arrange(-CROPDMG) %>% 
                         mutate(e = factor(ev, ev)) %>% 
                         ggplot(aes(x = e, y = CROPDMG, fill = e)) +
-                            theme(axis.text.x = element_text(angle = 90)) +
+                            theme(axis.text.x = element_text(angle = 90),
+                                  legend.position = "none") +
+                            labs(x = "",
+                                 y = "Total Crop Damage (in dollars)",
+                                 fill = "") +
                             geom_bar(stat = "identity") 
 
 plot_total_fatalities <- storm_plot_subset %>% 
                             arrange(-FATALITIES) %>% 
                             mutate(e = factor(ev, ev)) %>% 
                             ggplot(aes(x = e, y = FATALITIES, fill = e)) +
-                                theme(axis.text.x = element_text(angle = 90)) +
+                                theme(axis.text.x = element_text(angle = 90),
+                                   legend.position = "none") +
+                                labs(x = "",
+                                     y = "Total Number of Fatalities",
+                                     fill = "") +
                                 geom_bar(stat = "identity") 
 
 plot_total_injuries <- storm_plot_subset %>% 
                         arrange(-INJURIES) %>% 
                         mutate(e = factor(ev, ev)) %>% 
                         ggplot(aes(x = e, y = INJURIES, fill = e)) +
-                            theme(axis.text.x = element_text(angle = 90)) +
+                            theme(axis.text.x = element_text(angle = 90),
+                               legend.position = "none") +
+                            labs(x = "",
+                                 y = "Total Number of Injuries",
+                                 fill = "") +
                             geom_bar(stat = "identity") 
 
-
-
-ggplot(storm, aes(x=ev, y=PROPDMG, fill=ev)) +
-                        mutate(e = factor(ev, ev)) %>% 
-    theme(axis.text.x = element_text(angle = 90)) +
-    scale_x_discrete(limits = PROPDMG) +
-    geom_bar(stat="identity")
-
-
-panel_plot1 <- grid.arrange(plot_total_propdmg,
+panel_plot1 <- plot_grid(plot_total_propdmg,
                             plot_total_cropdmg,
                             plot_total_fatalities,
                             plot_total_injuries,
                             ncol = 2)
-
-
-g <- ggplot(storm, aes(ev)) + theme(axis.text.x = element_text(angle = 90))
-
-g + geom_bar(aes(weight = FATALITIES))
-
-ggplot(storm) + geom_bar(aes(event, weight = economy, fill = ev)) + theme(axis.text.x = element_text(angle = 90)) + scale_x_discrete(limits = head(res$ev, n = 10))
-
-spham <- ham %>% group_by(type) %>% summarise(health = sum(FATALITIES, INJURIES)) %>% arrange(desc(health))
-
-ggplot(spham) + geom_bar(aes(str_to_lower(type), weight = health)) + theme(axis.text.x = element_text(angle = 90)) + scale_x_discrete(limits = spham$type)
+panel_plot1
 ```
+
+
+Analysing this plot we can see that **Floods** are the main natural phenomena that affects the economy in the US, folowed by **Hurricanes**. Also, we can see that **Tornados** are by far the major factor directly influencing people.
+
+
+(I couldn't find a way to add captions to plots that were "merged", neither how to adjust image canvas to fit the Y-axis label. I apologize)
