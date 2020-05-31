@@ -33,6 +33,8 @@ library(tidyverse)
 library(magrittr)
 library(data.table)
 library(R.utils)
+library(egg)
+library(cowplot)
 ```
 
 
@@ -180,6 +182,67 @@ knitr::kable(head(storm_sample, n = num_of_factors), booktabs = TRUE)
 ## Results
 
 ```{r eval=FALSE, include=FALSE}
+
+
+storm %>% 
+    group_by(ev) %>% 
+    summarise(total = n()) %>% 
+    arrange(-total) %>% 
+    mutate(e = factor(ev, ev)) %>% 
+    head(n = 5)
+
+storm_plot_subset <- storm %>% 
+                        group_by(ev) %>% 
+                        summarise(PROPDMG = sum(PROPDMG, na.rm = T),
+                                  CROPDMG = sum(CROPDMG, na.rm = T),
+                                  FATALITIES = sum(FATALITIES, na.rm = T),
+                                  INJURIES = sum(INJURIES, na.rm = T)) %>% 
+                        arrange(-PROPDMG, -CROPDMG, -FATALITIES, -INJURIES) %>% 
+                        mutate(e = factor(ev, ev)) %>% 
+                        head(n = 5)
+
+plot_total_propdmg <- storm_plot_subset %>% 
+                        arrange(-PROPDMG) %>% 
+                        mutate(e = factor(ev, ev)) %>% 
+                        ggplot(aes(x = e, y = PROPDMG, fill = e)) +
+                            theme(axis.text.x = element_text(angle = 90)) +
+                            geom_bar(stat = "identity") 
+
+plot_total_cropdmg <- storm_plot_subset %>% 
+                        arrange(-CROPDMG) %>% 
+                        mutate(e = factor(ev, ev)) %>% 
+                        ggplot(aes(x = e, y = CROPDMG, fill = e)) +
+                            theme(axis.text.x = element_text(angle = 90)) +
+                            geom_bar(stat = "identity") 
+
+plot_total_fatalities <- storm_plot_subset %>% 
+                            arrange(-FATALITIES) %>% 
+                            mutate(e = factor(ev, ev)) %>% 
+                            ggplot(aes(x = e, y = FATALITIES, fill = e)) +
+                                theme(axis.text.x = element_text(angle = 90)) +
+                                geom_bar(stat = "identity") 
+
+plot_total_injuries <- storm_plot_subset %>% 
+                        arrange(-INJURIES) %>% 
+                        mutate(e = factor(ev, ev)) %>% 
+                        ggplot(aes(x = e, y = INJURIES, fill = e)) +
+                            theme(axis.text.x = element_text(angle = 90)) +
+                            geom_bar(stat = "identity") 
+
+
+
+ggplot(storm, aes(x=ev, y=PROPDMG, fill=ev)) +
+                        mutate(e = factor(ev, ev)) %>% 
+    theme(axis.text.x = element_text(angle = 90)) +
+    scale_x_discrete(limits = PROPDMG) +
+    geom_bar(stat="identity")
+
+
+panel_plot1 <- grid.arrange(plot_total_propdmg,
+                            plot_total_cropdmg,
+                            plot_total_fatalities,
+                            plot_total_injuries,
+                            ncol = 2)
 
 
 g <- ggplot(storm, aes(ev)) + theme(axis.text.x = element_text(angle = 90))
