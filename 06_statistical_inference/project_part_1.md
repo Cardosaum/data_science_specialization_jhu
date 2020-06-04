@@ -4,24 +4,23 @@ subtitle: "A comparison between exponential distributions and the Central Limit 
 author: "Matheus Cardoso"
 date: "Jun 04, 2020"
 output: 
-  pdf_document: 
-    toc: yes
-    fig_caption: yes
-    highlight: zenburn
   html_document: 
     fig_caption: yes
     highlight: zenburn
     keep_md: yes
     theme: simplex
     toc: yes
+    code_folding: hide
     toc_float: yes
+  pdf_document: 
+    toc: yes
+    fig_caption: yes
+    highlight: zenburn
 editor_options: 
   chunk_output_type: console
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, include = TRUE, cache = FALSE, warning = FALSE, message = FALSE)
-```
+
 
 # Overview
 
@@ -36,7 +35,8 @@ I'll present basicaly 3 points related to this theme:
 
 Before we start, we need to setup the enviroment
 
-```{r load_libs}
+
+```r
 library(tidyverse)
 library(magrittr)
 ```
@@ -47,7 +47,8 @@ Now, we can start to analyse the distribuitions.
 
 ## Sample Mean versus Theoretical Mean & Distribution comparisons
 
-```{r sample_mean}
+
+```r
 # we need to set seed to ensure reproducibility
 # the seed I choose is the number of seconds since 
 # 1 Jan 1970
@@ -84,7 +85,8 @@ exponential_sample %<>%
 
 With all the data generated, now we plot the results
 
-```{r plot_1}
+
+```r
 # plot of the sample distribution
 plot1 <- ggplot(exponential_sample) +
                     geom_histogram(aes(x = mean, y = ..density.. ),
@@ -101,6 +103,8 @@ plot1 %<>% + geom_line(aes(x, y),
                         color = "orange")
 ```
 
+![](project_part_1_files/figure-html/plot_1-1.png)<!-- -->
+
 (I had some trouble in putting the legend in this plot.)
 But, as we can see the sample and theoretical values are pretty close from one another.
 
@@ -108,8 +112,8 @@ But, as we can see the sample and theoretical values are pretty close from one a
 
 In order to compare the means and variances between **Sample** and **Theoretical** values, I made this table:
 
-```{r mean_and_variance}
 
+```r
 exponential_comparison <- tibble(name = character(), mean = double(), variance = double())
 exponential_comparison %<>% add_row(name = "Sample",
                                     mean = mean(exponential_sample$mean),
@@ -119,6 +123,15 @@ exponential_comparison %<>% add_row(name = "Sample",
                                     variance = (1/((lambda^2) * samples)))
 knitr::kable(exponential_comparison, caption = 'Comparison between "Sample" and "Theoretical" values.')
 ```
+
+
+
+Table: Comparison between "Sample" and "Theoretical" values.
+
+name               mean    variance
+------------  ---------  ----------
+Sample         4.979784   0.5925396
+Theoretical    5.000000   0.6250000
 
 As you can see, the mean and variance in Sample and in Theory are pretty close.
 
