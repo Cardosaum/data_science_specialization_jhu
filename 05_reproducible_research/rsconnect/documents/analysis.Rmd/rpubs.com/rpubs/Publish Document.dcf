@@ -1,0 +1,10 @@
+name: Publish Document
+title:
+username:
+account: rpubs
+server: rpubs.com
+hostUrl: rpubs.com
+appId: https://api.rpubs.com/api/v1/document/622258/ca2c048cf0584f7e94e81812c2b420f4
+bundleId: https://api.rpubs.com/api/v1/document/622258/ca2c048cf0584f7e94e81812c2b420f4
+url: http://rpubs.com/cardosaum/622258
+when: 1590964102.95233
