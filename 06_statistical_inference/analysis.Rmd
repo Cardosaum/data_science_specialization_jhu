@@ -1,0 +1,46 @@
+---
+title: "Simulating Exponential Distributions"
+subtitle: "A comparison between exponential distributions and the Central Limit Theorem"
+author: "Matheus Cardoso"
+date: "Jun 04, 2020"
+output: 
+  html_document: 
+    fig_caption: yes
+    highlight: zenburn
+    keep_md: yes
+    theme: simplex
+    toc: yes
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, include = TRUE, cache = FALSE, warning = FALSE, message = FALSE)
+```
+
+# Overview
+
+In this project I aim to present you how a randomly generated exponential distribution sample relates to the Central Limit Theorem (CLT from now on).
+I'll present basicaly 3 points related to this theme:
+
+ 1. Show the sample mean and compare it to the theoretical mean of the distribution.
+ 2. Show how variable the sample is (via variance) and compare it to the theoretical variance of the distribution.
+ 3. Show that the distribution is approximately normal.
+ 
+## Setting up the enviroment
+
+Before we start, we need to setup the enviroment
+
+```{r load_libs}
+library(tidyverse)
+```
+
+Now, we can start to analyse the distribuitions.
+
+# Simulations
+
+## Sample Mean versus Theoretical Mean
+
+## Sample Variance versus Theoretical Variance
+
+## Distribution
