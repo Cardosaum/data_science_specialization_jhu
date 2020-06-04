@@ -4,12 +4,17 @@ subtitle: "A comparison between exponential distributions and the Central Limit 
 author: "Matheus Cardoso"
 date: "Jun 04, 2020"
 output: 
+  pdf_document: 
+    toc: yes
+    fig_caption: yes
+    highlight: zenburn
   html_document: 
     fig_caption: yes
     highlight: zenburn
     keep_md: yes
     theme: simplex
     toc: yes
+    toc_float: yes
 editor_options: 
   chunk_output_type: console
 ---
@@ -33,14 +38,87 @@ Before we start, we need to setup the enviroment
 
 ```{r load_libs}
 library(tidyverse)
+library(magrittr)
 ```
 
 Now, we can start to analyse the distribuitions.
 
 # Simulations
 
-## Sample Mean versus Theoretical Mean
+## Sample Mean versus Theoretical Mean & Distribution comparisons
+
+```{r sample_mean}
+# we need to set seed to ensure reproducibility
+# the seed I choose is the number of seconds since 
+# 1 Jan 1970
+set.seed(1591274018)
+
+# now, we need to set the parameters to the
+# exponential distribuition
+lambda <- 0.2
+
+# we will perform 1000 simulations
+simulations <- 1E3
+
+# and we will use 40 samples to do the comparisons
+samples <- 40
+
+# now we generate a sample of exponential distribuitions
+# this will be a tibble with 1000 rows and 40 collunms
+# we need this to have a more tidy dataframe to work with
+exponential_sample <- matrix(data = rexp(samples * simulations, lambda), nrow = simulations) %>%
+                        as_tibble()
+
+# now we creat another column, named "mean", to store the mean
+# of each row
+exponential_sample %<>% mutate(mean = rowMeans(.))
+
+# finaly, we creat a subset frame with only the mean of the means
+exponential_mean <- exponential_sample %>% summarise(exponential_mean = mean(mean))
+
+# and a theoretical distribuition tibble for comparison
+exponential_sample %<>%
+                        mutate(x = sort(mean)) %>% 
+                        mutate( y = dnorm(.$x, mean = (1/lambda), sd = ( (1/lambda) / sqrt(samples))))
+```
+
+With all the data generated, now we plot the results
+
+```{r plot_1}
+# plot of the sample distribution
+plot1 <- ggplot(exponential_sample) +
+                    geom_histogram(aes(x = mean, y = ..density.. ),
+                        color = "white",
+                        fill = "#2182d7",
+                        alpha = .7) +
+                    geom_density(aes(mean), color = "blue")
+
+# plot of the theoretical distribution
+plot1 %<>% + geom_line(aes(x, y),
+                color = "orange") +
+             geom_vline(xintercept = 1 / lambda,
+                        size = .6,
+                        color = "orange")
+```
+
+(I had some trouble in putting the legend in this plot.)
+But, as we can see the sample and theoretical values are pretty close from one another.
 
 ## Sample Variance versus Theoretical Variance
 
-## Distribution
+In order to compare the means and variances between **Sample** and **Theoretical** values, I made this table:
+
+```{r mean_and_variance}
+
+exponential_comparison <- tibble(name = character(), mean = double(), variance = double())
+exponential_comparison %<>% add_row(name = "Sample",
+                                    mean = mean(exponential_sample$mean),
+                                    variance = var(exponential_sample$mean)) %>% 
+                            add_row(name = "Theoretical",
+                                    mean = (1/lambda),
+                                    variance = (1/((lambda^2) * samples)))
+knitr::kable(exponential_comparison, caption = 'Comparison between "Sample" and "Theoretical" values.')
+```
+
+As you can see, the mean and variance in Sample and in Theory are pretty close.
+
