@@ -1,0 +1,95 @@
+---
+title: "Data Analysis of Tooth Growth"
+subtitle: "The Effect of Vitamin C on Tooth Growth in Guinea Pigs"
+author: "Matheus Cardoso"
+date: "Jun 04, 2020"
+output: 
+  html_document: 
+    fig_caption: yes
+    highlight: zenburn
+    keep_md: yes
+    theme: simplex
+    toc: yes
+    toc_float: yes
+  pdf_document: 
+    toc: yes
+    fig_caption: yes
+    highlight: zenburn
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, include = TRUE, cache = FALSE, warning = FALSE, message = FALSE)
+```
+
+# Abstract
+
+In this report we will explore some basic informations about tooth growth related to different doses of vitamin C in pigs.
+I'll briefly describe some exploratory data analysis (EDA) performed, and after that present the results and a short discussion.
+
+# Methods
+
+We start setting the environment and loading the ToothGrowth dataset, a built-in dataframe from R.
+This is the description of the data:
+
+> <sub>The response is the length of odontoblasts (cells responsible for tooth growth) in 60 guinea pigs. Each animal received one of three dose levels of vitamin C (0.5, 1, and 2 mg/day) by one of two delivery methods, orange juice or ascorbic acid (a form of vitamin C and coded as VC).</sub>
+
+
+## Exploratory Data Analysis
+
+```{r setenv}
+library(tidyverse)
+library(pairwiseComparisons)
+
+# for reproducibility we need to set seed
+set.seed(42)
+```
+
+```{r load_data}
+df <- as_tibble(ToothGrowth) %>%
+    mutate(supp = case_when(
+        supp == "VC" ~ "Vitamin C",
+        supp == "OJ" ~ "Orange Juice"
+    )) %>% 
+    group_by(supp, dose)
+
+knitr::kable(head(sample_n(df, 1)))
+```
+
+
+## Visualy Analysing Data
+
+```{r data_plot1}
+ggplot(df) +
+    geom_boxplot(aes(supp, len, fill = supp)) +
+    facet_wrap( ~ dose) +
+    labs(
+        title = "Comparison of Tooth Growth by Delivery Method",
+        subtitle = "Note how dose levels affect length",
+        x = "Delivery Method",
+        y = "Tooth Length",
+        caption = "Note")
+```
+
+## Hypothesis
+
+As we can see in the plots there seams to exist a relationship in regard to the dose levels.
+It's harder to say the same about the two different delivery methods.
+Let's perform some statistical analysis to assess the significance for this two types of variance:
+
+ - Assess if dose levels are significant to tooth growth.
+ - Assess if delivery methods are significant to tooth growth.
+
+
+```{r data_comparisons}
+hypothesis_dose_level <- t.test(df$len ~ df$supp, paired = FALSE)
+hypothesis_dose_level
+```
+
+
+## Conclusion
+
+Reading the result of this analysis, we can conclude that it's indeed statistically significant the _dose_ variable,
+i.e. as we increase the dose, so does the length of the teeth. 
+In the other hand, we can't say the same about how vitamin C is delivered.  
