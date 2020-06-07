@@ -27,7 +27,7 @@ knitr::opts_chunk$set(echo = TRUE, include = TRUE, cache = FALSE, warning = FALS
 # Overview
 
 In this project I aim to present you how a randomly generated exponential distribution sample relates to the Central Limit Theorem (CLT from now on).
-I'll present basicaly 3 points related to this theme:
+I'll present basically 3 points related to this theme:
 
  1. Show the sample mean and compare it to the theoretical mean of the distribution.
  2. Show how variable the sample is (via variance) and compare it to the theoretical variance of the distribution.
@@ -35,14 +35,14 @@ I'll present basicaly 3 points related to this theme:
  
 ## Setting up the enviroment
 
-Before we start, we need to setup the enviroment
+Before we start, we need to setup the environment
 
 ```{r load_libs}
 library(tidyverse)
 library(magrittr)
 ```
 
-Now, we can start to analyse the distribuitions.
+Now, we can start to analyze the distributions.
 
 # Simulations
 
@@ -55,7 +55,7 @@ Now, we can start to analyse the distribuitions.
 set.seed(1591274018)
 
 # now, we need to set the parameters to the
-# exponential distribuition
+# exponential distribution
 lambda <- 0.2
 
 # we will perform 1000 simulations
@@ -64,20 +64,20 @@ simulations <- 1E3
 # and we will use 40 samples to do the comparisons
 samples <- 40
 
-# now we generate a sample of exponential distribuitions
-# this will be a tibble with 1000 rows and 40 collunms
+# now we generate a sample of exponential distributions
+# this will be a tibble with 1000 rows and 40 columns
 # we need this to have a more tidy dataframe to work with
 exponential_sample <- matrix(data = rexp(samples * simulations, lambda), nrow = simulations) %>%
                         as_tibble()
 
-# now we creat another column, named "mean", to store the mean
+# now we create another column, named "mean", to store the mean
 # of each row
 exponential_sample %<>% mutate(mean = rowMeans(.))
 
-# finaly, we creat a subset frame with only the mean of the means
+# finally, we create a subset frame with only the mean of the means
 exponential_mean <- exponential_sample %>% summarise(exponential_mean = mean(mean))
 
-# and a theoretical distribuition tibble for comparison
+# and a theoretical distribution tibble for comparison
 exponential_sample %<>%
                         mutate(x = sort(mean)) %>% 
                         mutate( y = dnorm(.$x, mean = (1/lambda), sd = ( (1/lambda) / sqrt(samples))))
