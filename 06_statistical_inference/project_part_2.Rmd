@@ -4,6 +4,10 @@ subtitle: "The Effect of Vitamin C on Tooth Growth in Guinea Pigs"
 author: "Matheus Cardoso"
 date: "Jun 04, 2020"
 output: 
+  pdf_document: 
+    toc: yes
+    fig_caption: yes
+    highlight: zenburn
   html_document: 
     fig_caption: yes
     highlight: zenburn
@@ -11,16 +15,12 @@ output:
     theme: simplex
     toc: yes
     toc_float: yes
-  pdf_document: 
-    toc: yes
-    fig_caption: yes
-    highlight: zenburn
 editor_options: 
   chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, include = TRUE, cache = FALSE, warning = FALSE, message = FALSE)
+knitr::opts_chunk$set(echo = TRUE, include = TRUE, cache = TRUE, warning = FALSE, message = FALSE)
 ```
 
 # Abstract
@@ -57,6 +57,16 @@ df <- as_tibble(ToothGrowth) %>%
 knitr::kable(head(sample_n(df, 1)))
 ```
 
+```{r eda}
+ggplot(df) +
+    geom_point(aes(supp, len, color = supp)) +
+    facet_grid(. ~ dose)
+
+ggplot(df) +
+    geom_density(aes(len, color = supp, fill = supp, alpha = 0.6)) +
+    facet_wrap( ~ supp)
+```
+
 
 ## Visualy Analysing Data
 
@@ -66,11 +76,22 @@ ggplot(df) +
     facet_wrap( ~ dose) +
     labs(
         title = "Comparison of Tooth Growth by Delivery Method",
-        subtitle = "Note how dose levels affect length",
+        subtitle = "Separated by dose levels",
         x = "Delivery Method",
         y = "Tooth Length",
-        caption = "Note")
+        caption = "Note how dose levels seems to affect tooth length")
 ```
+
+```{r data_plot2}
+ggplot(df) +
+    geom_boxplot(aes(supp, len, fill = supp)) +
+    labs(
+        title = "Comparison of Tooth Growth by Delivery Method",
+        subtitle = "Without separation by dose levels",
+        x = "Delivery Method",
+        y = "Tooth Length")
+```
+
 
 ## Hypothesis
 
@@ -78,16 +99,42 @@ As we can see in the plots there seams to exist a relationship in regard to the 
 It's harder to say the same about the two different delivery methods.
 Let's perform some statistical analysis to assess the significance for this two types of variance:
 
- - Assess if dose levels are significant to tooth growth.
  - Assess if delivery methods are significant to tooth growth.
 
-
-```{r data_comparisons}
-hypothesis_dose_level <- t.test(df$len ~ df$supp, paired = FALSE)
-hypothesis_dose_level
+```{r hypothesis_1}
+hypothesis_delivery_method <- t.test(df$len ~ df$supp, paired = FALSE)
+hypothesis_delivery_method
 ```
 
 
+ - Assess if dose levels are significant to tooth growth.
+ 
+ 
+```{r hypothesis_2}
+df_0.5_1 <- df %>% filter(dose == 0.5 | dose == 1)
+df_0.5_2 <- df %>% filter(dose == 0.5 | dose == 2)
+df_1_2 <- df %>% filter(dose == 1 | dose == 2)
+
+hypothesis_dose_level_0.5_1 <- t.test(df_0.5_1$len ~ df_0.5_1$dose)
+hypothesis_dose_level_0.5_2 <- t.test(df_0.5_2$len ~ df_0.5_2$dose)
+hypothesis_dose_level_1_2 <- t.test(df_1_2$len ~ df_1_2$dose)
+```
+ 
+   - Analyzing the results
+     - Test 1: dose = 0.5 and dose = 1
+     ```{r}
+     hypothesis_dose_level_0.5_1
+     ```
+     - Test 2: dose = 0.5 and dose = 2 
+     ```{r}
+     hypothesis_dose_level_0.5_2
+     ```
+     - Test 3: dose = 1 and dose = 2 
+     ```{r}
+     hypothesis_dose_level_1_2
+     ```
+     
+ 
 ## Conclusion
 
 Reading the result of this analysis, we can conclude that it's indeed statistically significant the _dose_ variable,
