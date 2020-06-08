@@ -220,8 +220,9 @@ hypothesis_dose_level_1_2 <- t.test(df_1_2$len ~ df_1_2$dose)
      ```
      
  
-## Conclusion
+# Conclusion
 
 Reading the result of this analysis, we can conclude that it's indeed statistically significant the _dose_ variable,
 i.e. as we increase the dose, so does the length of the teeth. 
 In the other hand, we can't say the same about how vitamin C is delivered.  
+For this conclusion I'm assuming that only p-values equal of less than 0.05 (5%) are statistically significant.

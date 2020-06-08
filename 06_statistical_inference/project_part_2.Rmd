@@ -4,10 +4,6 @@ subtitle: "The Effect of Vitamin C on Tooth Growth in Guinea Pigs"
 author: "Matheus Cardoso"
 date: "Jun 04, 2020"
 output: 
-  pdf_document: 
-    toc: yes
-    fig_caption: yes
-    highlight: zenburn
   html_document: 
     fig_caption: yes
     highlight: zenburn
@@ -15,6 +11,10 @@ output:
     theme: simplex
     toc: yes
     toc_float: yes
+  pdf_document: 
+    toc: yes
+    fig_caption: yes
+    highlight: zenburn
 editor_options: 
   chunk_output_type: console
 ---
@@ -140,3 +140,4 @@ hypothesis_dose_level_1_2 <- t.test(df_1_2$len ~ df_1_2$dose)
 Reading the result of this analysis, we can conclude that it's indeed statistically significant the _dose_ variable,
 i.e. as we increase the dose, so does the length of the teeth. 
 In the other hand, we can't say the same about how vitamin C is delivered.  
+For this conclusion I'm assuming that only p-values equal of less than 0.05 (5%) are statistically significant.
