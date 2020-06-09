@@ -1,0 +1,86 @@
+---
+title: "Data Analysis of Cars Performance | Motor Trend Magazine"
+subtitle: "How does transmission type inffluences Miles Per Gallon?"
+author: "Matheus Cardoso"
+date: "Jun 10, 2020"
+output: 
+  html_document: 
+    fig_caption: yes
+    highlight: zenburn
+    keep_md: yes
+    theme: simplex
+    toc: yes
+    code_folding: hide
+    toc_float: yes
+  pdf_document: 
+    toc: yes
+    fig_caption: yes
+    highlight: zenburn
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, include = TRUE, cache = FALSE, warning = FALSE, message = FALSE)
+```
+
+# Overview
+
+In this post we'll perform some data analysis in regard to transmission type and miles per gallon (MPG).
+We'll seek to answer 2 main questions:
+
+ - “Is an automatic or manual transmission better for MPG”? 
+ 
+ - How can we "Quantify the MPG difference between automatic and manual transmissions"?
+
+
+
+```{r load_libs}
+library(tidyverse)
+library(magrittr)
+library(GGally)
+```
+
+```{r load_data}
+d <- mtcars %>%
+        as_tibble() %>% 
+        mutate(am = factor(am, labels = c("Automatic", "Manual")))
+    
+    
+str(d)
+
+ggplot(d) +
+    geom_point(aes(mpg, disp, color = am)) +
+    geom_smooth(aes(mpg, disp, color = am), method = "lm")
+
+ggplot(d) +
+    geom_point(aes(mpg, cyl, color = am)) +
+    geom_smooth(aes(mpg, cyl, color = am), method = "lm")
+
+ggplot(d) +
+    geom_point(aes(mpg, wt, color = am)) +
+    geom_smooth(aes(mpg, wt, color = am), method = "lm")
+
+ggplot(d) +
+    geom_point(aes(mpg, vs, color = am)) +
+    geom_smooth(aes(mpg, vs, color = am), method = "lm")
+
+ggplot(d) +
+    geom_point(aes(mpg, gear, color = am)) +
+    geom_smooth(aes(mpg, gear, color = am), method = "lm")
+
+ggplot(d) +
+    geom_point(aes(mpg, carb, color = am)) +
+    geom_smooth(aes(mpg, carb, color = am), method = "lm")
+
+
+ggplot(d) +
+    geom_boxplot(aes(am, mpg, fill = am))
+
+t.test(d$mpg ~ d$am)
+foo <- lm(mpg ~ ., data = d)
+
+a <- d %>% select(mpg, disp, hp, drat, wt, qsec, am)
+ggpairs(a, mapping = ggplot2::aes(color = am))
+summary(foo)
+```
