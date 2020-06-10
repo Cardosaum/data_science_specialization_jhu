@@ -4,6 +4,10 @@ subtitle: "How does transmission type inffluences Miles Per Gallon?"
 author: "Matheus Cardoso"
 date: "Jun 10, 2020"
 output: 
+  pdf_document: 
+    toc: yes
+    fig_caption: yes
+    highlight: zenburn
   html_document: 
     fig_caption: yes
     highlight: zenburn
@@ -12,19 +16,15 @@ output:
     toc: yes
     code_folding: hide
     toc_float: yes
-  pdf_document: 
-    toc: yes
-    fig_caption: yes
-    highlight: zenburn
 editor_options: 
   chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, include = TRUE, cache = FALSE, warning = FALSE, message = FALSE)
+knitr::opts_chunk$set(echo = TRUE, include = TRUE, cache = TRUE, warning = FALSE, message = FALSE)
 ```
 
-# Overview
+# Executive Summary
 
 In this post we'll perform some data analysis in regard to transmission type and miles per gallon (MPG).
 We'll seek to answer 2 main questions:
@@ -35,9 +35,9 @@ We'll seek to answer 2 main questions:
 
 # Data Exploration
 
-## Introduction to dataset used
+## Introduction to dataframe used
 
-We are going to use a famous dataset in R, called `mtcars`.
+We are going to use a famous dataframe in R, called `mtcars`.
 Here is a brief explanation about it:
 
 ><sub>The data was extracted from the 1974 Motor Trend US magazine, and comprises fuel consumption and 10 aspects of automobile design and performance for 32 automobiles (1973–74 models).</sub>
@@ -67,6 +67,8 @@ library(magrittr)
 library(GGally)
 library(knitr)
 library(glue)
+library(ggfortify)
+library(broom)
 
 # set seed for reproducibility
 set.seed(1)
@@ -85,7 +87,7 @@ summary_d <- tibble(
 # show dataframe info
 kable(
     summary_d,
-    caption = "A summary of the dimensions of `mtcars` dataset"
+    caption = "A summary of the dimensions of `mtcars` dataframe"
     )
 
 kable(
@@ -140,14 +142,50 @@ ggplot(d) +
             "
         )
     )
+kable(plot_t.test$estimate, caption = "Summary of variation between transmission types")
 ```
+
+## Modeling data
+
+Now we go one step further and perform some statistical modeling.
 
 ```{r model_data}
 
-foo <- lm(mpg ~ ., data = d)
+cars_t.test <- t.test(d$mpg ~ d$am) %>% 
+                tidy()
+kable(cars_t.test, caption = "Student's T-test for `mtcars` dataframe")
 
-# a <- d %>% select(mpg, disp, hp, drat, wt, qsec, am)
-# ggpairs(a, mapping = ggplot2::aes(color = am))
-# summary(foo)
-# ggplot(foo)
+cars_regression <- lm(mpg ~ ., data = d) %>%
+                tidy()
+kable(cars_regression, caption = "Linear Regression Model for `mtcars` dataframe")
+
 ```
+
+Finally we make a panel plot to show how is the residual of the model. 
+
+```{r plot_residual}
+
+cars_model <- lm(mpg ~ ., data = d)
+plot_residual <- autoplot(
+                    step(cars_model,
+                         direction="both",
+                         trace=FALSE)
+)
+plot_residual
+
+```
+
+
+# Conclusions
+
+As we can see from this tables and plots, MPG values tend to be highly influence by gear type.
+Answering our initial questions:
+
+ - “Is an automatic or manual transmission better for MPG”? 
+ 
+    - Answer: Cars with manual transmissions are generally better when seeking better miles per gallon values.
+ 
+ 
+ - How can we "Quantify the MPG difference between automatic and manual transmissions"?
+
+    - Answer: Looking at the previous boxplot and t.test we can easily quantify this difference.
