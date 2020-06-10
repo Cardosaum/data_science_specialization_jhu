@@ -31,152 +31,153 @@ We'll seek to answer 2 main questions:
  
  - How can we "Quantify the MPG difference between automatic and manual transmissions"?
 
+# Data Exploration
 
+## Introduction to dataset used
+
+We are going to use a famous dataset in R, called `mtcars`.
+Here is a brief explanation about it:
+
+><sub>The data was extracted from the 1974 Motor Trend US magazine, and comprises fuel consumption and 10 aspects of automobile design and performance for 32 automobiles (1973–74 models).</sub>
+
+><sub>Format:
+A data frame with 32 observations on 11 (numeric) variables.
+<br />[, 1]	mpg	Miles/(US) gallon
+<br />[, 2]	cyl	Number of cylinders
+<br />[, 3]	disp	Displacement (cu.in.)
+<br />[, 4]	hp	Gross horsepower
+<br />[, 5]	drat	Rear axle ratio
+<br />[, 6]	wt	Weight (1000 lbs)
+<br />[, 7]	qsec	1/4 mile time
+<br />[, 8]	vs	Engine (0 = V-shaped, 1 = straight)
+<br />[, 9]	am	Transmission (0 = automatic, 1 = manual)
+<br />[,10]	gear	Number of forward gears
+<br />[,11]	carb	Number of carburetors</sub>
+
+
+## Load data and process it
+
+In this section we load libraries, load data and modify it to a more tidy form.
 
 
 ```r
 library(tidyverse)
 library(magrittr)
 library(GGally)
-```
+library(knitr)
+library(glue)
 
+# set seed for reproducibility
+set.seed(1)
 
-```r
 d <- mtcars %>%
         as_tibble() %>% 
-        mutate(am = factor(am, labels = c("Automatic", "Manual")))
-    
-    
-str(d)
+        mutate(am = factor(am, labels = c("Automatic", "Manual")),
+               vs = factor(vs, labels = c("V", "S")),
+               cyl = factor(cyl))
+
+summary_d <- tibble(
+    "Number of Rows" = nrow(d),
+    "Number of Colunms" = ncol(d)
+)
+
+# show dataframe info
+kable(
+    summary_d,
+    caption = "A summary of the dimensions of `mtcars` dataset"
+    )
 ```
 
+
+
+Table: A summary of the dimensions of `mtcars` dataset
+
+ Number of Rows   Number of Colunms
+---------------  ------------------
+             32                  11
+
+```r
+kable(
+    sample_n(d, 5),
+    caption = "A quick look at the raw data"
+)
 ```
-## tibble [32 × 11] (S3: tbl_df/tbl/data.frame)
-##  $ mpg : num [1:32] 21 21 22.8 21.4 18.7 18.1 14.3 24.4 22.8 19.2 ...
-##  $ cyl : num [1:32] 6 6 4 6 8 6 8 4 4 6 ...
-##  $ disp: num [1:32] 160 160 108 258 360 ...
-##  $ hp  : num [1:32] 110 110 93 110 175 105 245 62 95 123 ...
-##  $ drat: num [1:32] 3.9 3.9 3.85 3.08 3.15 2.76 3.21 3.69 3.92 3.92 ...
-##  $ wt  : num [1:32] 2.62 2.88 2.32 3.21 3.44 ...
-##  $ qsec: num [1:32] 16.5 17 18.6 19.4 17 ...
-##  $ vs  : num [1:32] 0 0 1 1 0 1 0 1 1 1 ...
-##  $ am  : Factor w/ 2 levels "Automatic","Manual": 2 2 2 1 1 1 1 1 1 1 ...
-##  $ gear: num [1:32] 4 4 4 3 3 3 3 4 4 4 ...
-##  $ carb: num [1:32] 4 4 1 1 2 1 4 2 2 4 ...
-```
+
+
+
+Table: A quick look at the raw data
+
+  mpg  cyl    disp    hp   drat      wt    qsec  vs   am           gear   carb
+-----  ----  -----  ----  -----  ------  ------  ---  ----------  -----  -----
+ 19.2  8       400   175   3.08   3.845   17.05  V    Automatic       3      2
+ 21.4  6       258   110   3.08   3.215   19.44  S    Automatic       3      1
+ 14.3  8       360   245   3.21   3.570   15.84  V    Automatic       3      4
+ 21.0  6       160   110   3.90   2.620   16.46  V    Manual          4      4
+ 21.0  6       160   110   3.90   2.875   17.02  V    Manual          4      4
+
+
+## Basic visualization of the data
+
+Here we show some basic plots demonstrating properties of the data.
+
+
 
 ```r
 ggplot(d) +
     geom_point(aes(mpg, disp, color = am)) +
-    geom_smooth(aes(mpg, disp, color = am), method = "lm")
+    geom_smooth(aes(mpg, disp, color = am), method = "lm") +
+    labs(
+        title = "Variation of Engine Displacement as Miles per Galon as increases",
+        caption = "Note how transmission type influences the relationship",
+        x = "Miles per Galon",
+        y = "Engine Displacement (cu.in.)"
+    ) +
+    scale_color_discrete(name = "Transmission Type")
 ```
 
-![](regression_model_cars_project_files/figure-html/load_data-1.png)<!-- -->
-
-```r
-ggplot(d) +
-    geom_point(aes(mpg, cyl, color = am)) +
-    geom_smooth(aes(mpg, cyl, color = am), method = "lm")
-```
-
-![](regression_model_cars_project_files/figure-html/load_data-2.png)<!-- -->
-
-```r
-ggplot(d) +
-    geom_point(aes(mpg, wt, color = am)) +
-    geom_smooth(aes(mpg, wt, color = am), method = "lm")
-```
-
-![](regression_model_cars_project_files/figure-html/load_data-3.png)<!-- -->
-
-```r
-ggplot(d) +
-    geom_point(aes(mpg, vs, color = am)) +
-    geom_smooth(aes(mpg, vs, color = am), method = "lm")
-```
-
-![](regression_model_cars_project_files/figure-html/load_data-4.png)<!-- -->
+![](regression_model_cars_project_files/figure-html/plots-1.png)<!-- -->
 
 ```r
 ggplot(d) +
     geom_point(aes(mpg, gear, color = am)) +
-    geom_smooth(aes(mpg, gear, color = am), method = "lm")
+    geom_smooth(aes(mpg, gear, color = am), method = "lm") +
+    labs(
+        title = "How Gear type and Miles per Galon are related",
+        caption = "Note how automatic cars tend to have a positive association between Miles per Galon and Gear.
+        The same does not occour with manual cars.",
+        x = "Miles per Galon",
+        y = "Gear type"
+    ) +
+    scale_color_discrete(name = "Transmission Type")
 ```
 
-![](regression_model_cars_project_files/figure-html/load_data-5.png)<!-- -->
+![](regression_model_cars_project_files/figure-html/plots-2.png)<!-- -->
 
 ```r
+plot_t.test <- t.test(d$mpg ~ d$am)
 ggplot(d) +
-    geom_point(aes(mpg, carb, color = am)) +
-    geom_smooth(aes(mpg, carb, color = am), method = "lm")
+    geom_boxplot(aes(am, mpg, fill = am)) +
+    scale_color_discrete(name = "Transmission Type") +
+    labs(
+        title = "How does Transmission Type influences Miles per Galon?",
+        x = "Transmission Type",
+        y = "Miles per Galon",
+        caption = glue(
+            "As you can see, the difference between transmission type is quite large.
+            The p-value for this two groups is {round(plot_t.test$p.value, 3)}
+            "
+        )
+    )
 ```
 
-![](regression_model_cars_project_files/figure-html/load_data-6.png)<!-- -->
+![](regression_model_cars_project_files/figure-html/plots-3.png)<!-- -->
 
-```r
-ggplot(d) +
-    geom_boxplot(aes(am, mpg, fill = am))
-```
-
-![](regression_model_cars_project_files/figure-html/load_data-7.png)<!-- -->
-
-```r
-t.test(d$mpg ~ d$am)
-```
-
-```
-## 
-## 	Welch Two Sample t-test
-## 
-## data:  d$mpg by d$am
-## t = -3.7671, df = 18.332, p-value = 0.001374
-## alternative hypothesis: true difference in means is not equal to 0
-## 95 percent confidence interval:
-##  -11.280194  -3.209684
-## sample estimates:
-## mean in group Automatic    mean in group Manual 
-##                17.14737                24.39231
-```
 
 ```r
 foo <- lm(mpg ~ ., data = d)
 
-a <- d %>% select(mpg, disp, hp, drat, wt, qsec, am)
-ggpairs(a, mapping = ggplot2::aes(color = am))
-```
-
-![](regression_model_cars_project_files/figure-html/load_data-8.png)<!-- -->
-
-```r
-summary(foo)
-```
-
-```
-## 
-## Call:
-## lm(formula = mpg ~ ., data = d)
-## 
-## Residuals:
-##     Min      1Q  Median      3Q     Max 
-## -3.4506 -1.6044 -0.1196  1.2193  4.6271 
-## 
-## Coefficients:
-##             Estimate Std. Error t value Pr(>|t|)  
-## (Intercept) 12.30337   18.71788   0.657   0.5181  
-## cyl         -0.11144    1.04502  -0.107   0.9161  
-## disp         0.01334    0.01786   0.747   0.4635  
-## hp          -0.02148    0.02177  -0.987   0.3350  
-## drat         0.78711    1.63537   0.481   0.6353  
-## wt          -3.71530    1.89441  -1.961   0.0633 .
-## qsec         0.82104    0.73084   1.123   0.2739  
-## vs           0.31776    2.10451   0.151   0.8814  
-## amManual     2.52023    2.05665   1.225   0.2340  
-## gear         0.65541    1.49326   0.439   0.6652  
-## carb        -0.19942    0.82875  -0.241   0.8122  
-## ---
-## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-## 
-## Residual standard error: 2.65 on 21 degrees of freedom
-## Multiple R-squared:  0.869,	Adjusted R-squared:  0.8066 
-## F-statistic: 13.93 on 10 and 21 DF,  p-value: 3.793e-07
+# a <- d %>% select(mpg, disp, hp, drat, wt, qsec, am)
+# ggpairs(a, mapping = ggplot2::aes(color = am))
+# summary(foo)
+# ggplot(foo)
 ```
