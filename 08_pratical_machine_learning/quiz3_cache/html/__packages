@@ -1,0 +1,16 @@
+base
+lattice
+ggplot2
+caret
+tidyverse
+tibble
+tidyr
+readr
+purrr
+dplyr
+stringr
+forcats
+bitops
+rattle
+AppliedPredictiveModeling
+pgmm
