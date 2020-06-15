@@ -1,0 +1,49 @@
+---
+title: "Final Project - Pratical Machine Learning" 
+subtitle: "Analising and modeling Human Active Recognition data"
+author: "Matheus Cardoso"
+date: "May 28, 2020"
+output: 
+  html_document: 
+    fig_caption: yes
+    highlight: zenburn
+    keep_md: yes
+    theme: simplex
+    toc: yes
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, include = TRUE, cache = TRUE, warning = FALSE, message = FALSE)
+```
+
+# Abstract
+
+In this project I'll analyze data about Human Active Recognition (HAR).
+
+
+# Methods
+
+## Getting Data
+
+```{r data_download}
+data_path          <- "./data"
+training_file_path <- file.path(data_path, "training.csv")
+testing_file_path  <- file.path(data_path, "testing.csv")
+training_file_url  <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+testing_file_url   <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+
+if (!dir.exists(data_path)){
+    dir.create(data_path)
+}
+
+if (!file.exists(training_file_path)){
+    download.file(training_file_url, training_file_path, method = "curl")
+}
+
+if (!file.exists(testing_file_path)){
+    download.file(testing_file_url, testing_file_path, method = "curl")
+}
+
+```
