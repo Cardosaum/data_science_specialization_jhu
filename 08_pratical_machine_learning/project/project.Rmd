@@ -10,6 +10,8 @@ output:
     keep_md: yes
     theme: simplex
     toc: yes
+    number_sections: yes
+    code_folding: hide
 editor_options: 
   chunk_output_type: console
 ---
@@ -26,6 +28,13 @@ In this project I'll analyze data about Human Active Recognition (HAR).
 # Methods
 
 ## Getting Data
+
+```{r load_libs}
+library(tidyverse)
+library(magrittr)
+library(tidymodels)
+library(ranger)
+```
 
 ```{r data_download}
 data_path          <- "./data"
@@ -47,3 +56,174 @@ if (!file.exists(testing_file_path)){
 }
 
 ```
+
+```{r data_load}
+set.seed(42)
+
+training <- read_csv(training_file_path)
+testing <- read_csv(testing_file_path)
+
+# skimr::skim(training)
+# skimr::skim(testing)
+
+```
+
+```{r}
+# training %>% 
+#     summarise(across(everything(), ~ sum(is.na(.x)))) %>% 
+#     skimr::skim()
+
+training %>% 
+    summarise(across(everything(), ~ all(sum(is.na(.x))) > 0)) %>% 
+    select(where(isTRUE)) %>%
+    colnames() -> columns_to_remove
+
+training %<>% 
+    select(!all_of(columns_to_remove) & !X1) %>%
+    mutate(across(where(is.character), as.factor))
+
+testing %<>% 
+    select(!all_of(columns_to_remove) & !X1 & !problem_id) %>%
+    mutate(across(where(is.character), as.factor))
+
+training %<>% 
+    mutate(
+        cvtd_timestamp = as.character(cvtd_timestamp) %>% 
+            strptime("%d/%m/%Y %H:%M")
+    ) %>% 
+    mutate(
+        min = .$cvtd_timestamp$min,
+        hour = .$cvtd_timestamp$hour,
+        mday = .$cvtd_timestamp$mday,
+        mon = .$cvtd_timestamp$mon,
+        wday = .$cvtd_timestamp$wday
+    ) %>% 
+    mutate(
+        cvtd_timestamp = as.character(cvtd_timestamp)
+    )
+
+testing %<>% 
+    mutate(
+        cvtd_timestamp = as.character(cvtd_timestamp) %>% 
+            strptime("%d/%m/%Y %H:%M")
+    ) %>% 
+    mutate(
+        min = .$cvtd_timestamp$min,
+        hour = .$cvtd_timestamp$hour,
+        mday = .$cvtd_timestamp$mday,
+        mon = .$cvtd_timestamp$mon,
+        wday = .$cvtd_timestamp$wday
+    ) %>% 
+    mutate(
+        cvtd_timestamp = factor(as.character(cvtd_timestamp))
+    )
+
+skimr::skim(training)
+# skimr::skim(testing)
+```
+
+```{r}
+df_split <- initial_split(training, strata = classe)
+
+df_train <- training(df_split)
+df_test  <- testing(df_split)
+
+nrow(df_train)/nrow(training)
+
+df_train %>% 
+    count(classe) %>% 
+    mutate(prop = n/sum(n))
+
+df_test %>% 
+    count(classe) %>% 
+    mutate(prop = n/sum(n))
+```
+
+```{r}
+rf_mod <- 
+    rand_forest(trees = 1000) %>% 
+    set_engine("ranger", num.threads = parallel::detectCores()) %>% 
+    set_mode("classification")
+
+data_recipe <- 
+    recipe(classe ~ ., data = training) %>% 
+    step_rm(cvtd_timestamp) %>% 
+    step_dummy(all_nominal(), -all_outcomes()) %>% 
+    step_zv(all_predictors())
+
+rf_fit <- 
+    rf_mod %>% 
+    fit(classe ~ ., data = df_train)
+
+rf_fit
+```
+
+```{r}
+rf_training_pred <- 
+    predict(rf_fit, df_train) %>% 
+    bind_cols(predict(rf_fit, df_train, type = "prob")) %>% 
+    bind_cols(df_train %>% 
+                  select(classe))
+```
+
+```{r}
+rf_training_pred %>% 
+    roc_auc(truth = classe, .pred_A, .pred_B, .pred_C, .pred_D, .pred_E)
+
+rf_training_pred %>% 
+    accuracy(truth = classe, .pred_class)
+```
+
+```{r}
+rf_testing_pred <- 
+    predict(rf_fit, df_test) %>% 
+    bind_cols(predict(rf_fit, df_test, type = "prob")) %>% 
+    bind_cols(df_test %>% select(classe))
+```
+
+```{r}
+rf_testing_pred %>% 
+    roc_auc(truth = classe, .pred_A, .pred_B, .pred_C, .pred_D, .pred_E)
+
+rf_testing_pred %>% 
+    accuracy(truth = classe, .pred_class)
+
+rf_testing_pred %>% 
+    roc_curve(truth = classe, .pred_A, .pred_B, .pred_C, .pred_D, .pred_E) %>% 
+    autoplot()
+```
+
+
+
+
+```{r}
+folds <-
+    vfold_cv(
+        training,
+        v = 10,
+        strata = classe
+)
+folds
+```
+
+
+```{r}
+
+rf_wf <- 
+    workflow() %>% 
+    add_model(rf_mod) %>% 
+    add_recipe(data_recipe)
+
+rf_fit_rs <- 
+    rf_wf %>% 
+    fit_resamples(folds)
+
+collect_metrics(rf_fit_rs)
+```
+
+```{r}
+rf_testing_pred <- 
+    predict(rf_fit_rs, testing) %>% 
+    bind_cols(predict(rf_fit_rs, testing, type = "prob"))
+```
+
