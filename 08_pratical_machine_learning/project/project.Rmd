@@ -193,37 +193,81 @@ rf_testing_pred %>%
     autoplot()
 ```
 
-
-
-
 ```{r}
-folds <-
-    vfold_cv(
-        training,
-        v = 10,
-        strata = classe
+library(Rtsne)
+set.seed(42)
+
+iris_unique <- unique(iris)
+tsne_out <- Rtsne(
+    as.matrix(iris_unique[, 1:4]),
+    perplexity = 30,
+    dims = 3,
+    theta = 0.0,
+    pca = T,
+    max_iter = 1E3,
+    pca_scale = T,
+    verbose = T,
+    eta = 200.0,
+    num_threads = parallel::detectCores())
+
+plot(tsne_out$Y, col = iris_unique$Species, asp = 1)
+
+library(plotly)
+plot_ly(
+    x = tsne_out$Y[, 1],
+    y = tsne_out$Y[, 2],
+    z = tsne_out$Y[, 3],
+    type = "scatter3d",
+    mode = "markers",
+    color = iris_unique$Species
 )
-folds
-```
-
-
-```{r}
-
-rf_wf <- 
-    workflow() %>% 
-    add_model(rf_mod) %>% 
-    add_recipe(data_recipe)
-
-rf_fit_rs <- 
-    rf_wf %>% 
-    fit_resamples(folds)
-
-collect_metrics(rf_fit_rs)
 ```
 
 ```{r}
-rf_testing_pred <- 
-    predict(rf_fit_rs, testing) %>% 
-    bind_cols(predict(rf_fit_rs, testing, type = "prob"))
+library(Rtsne)
+set.seed(42)
+training %>% 
+    # filter(classe == "A" | classe == "D") %>% 
+    # slice_sample(n = 500) %>% 
+    select(where(is.numeric)) -> df
+
+training %>% 
+    # filter(classe == "A" | classe == "D") %>% 
+    # slice_sample(n = 500) %>% 
+    .$classe %>% 
+    as.factor() -> df_color
+
+tsne_train <-
+    Rtsne(
+        df,
+        perplexity = 30,
+        dims = 3,
+        theta = 0.5,
+        pca = T,
+        max_iter = 3E3,
+        pca_scale = T,
+        verbose = T,
+        eta = 200.0,
+        num_threads = parallel::detectCores() - 2)
+
+
+
+a <- tsne_train$Y %>% as_tibble()
+
+ggplot(a, aes(V1, V2, color = df_color)) +
+    geom_point()
+```
+
+```{r}
+library(plotly)
+
+plot_ly(
+    x = a$V1,
+    y = a$V2,
+    z = a$V3,
+    type = "scatter3d",
+    mode = "markers",
+    color = df_color
+)
 ```
 
