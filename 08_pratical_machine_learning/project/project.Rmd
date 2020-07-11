@@ -2,7 +2,7 @@
 title: "Final Project - Pratical Machine Learning" 
 subtitle: "Analising and modeling Human Active Recognition data"
 author: "Matheus Cardoso"
-date: "May 28, 2020"
+date: "Jul 06, 2020"
 output: 
   html_document: 
     fig_caption: yes
@@ -38,55 +38,53 @@ library(ranger)
 
 ```{r data_download}
 data_path          <- "./data"
-training_file_path <- file.path(data_path, "training.csv")
-testing_file_path  <- file.path(data_path, "testing.csv")
-training_file_url  <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
-testing_file_url   <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+df_training_file_path <- file.path(data_path, "training.csv")
+df_testing_file_path  <- file.path(data_path, "testing.csv")
+df_training_file_url  <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+df_testing_file_url   <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
 
 if (!dir.exists(data_path)){
     dir.create(data_path)
 }
 
-if (!file.exists(training_file_path)){
-    download.file(training_file_url, training_file_path, method = "curl")
+if (!file.exists(df_training_file_path)){
+    download.file(df_training_file_url, df_training_file_path, method = "curl")
 }
 
-if (!file.exists(testing_file_path)){
-    download.file(testing_file_url, testing_file_path, method = "curl")
+if (!file.exists(df_testing_file_path)){
+    download.file(df_testing_file_url, df_testing_file_path, method = "curl")
 }
 
 ```
 
 ```{r data_load}
-set.seed(42)
+df_training <- read_csv(df_training_file_path)
+df_testing <- read_csv(df_testing_file_path)
 
-training <- read_csv(training_file_path)
-testing <- read_csv(testing_file_path)
-
-# skimr::skim(training)
-# skimr::skim(testing)
+# skimr::skim(df_training)
+# skimr::skim(df_testing)
 
 ```
 
 ```{r}
-# training %>% 
+# df_training %>% 
 #     summarise(across(everything(), ~ sum(is.na(.x)))) %>% 
 #     skimr::skim()
 
-training %>% 
+df_training %>% 
     summarise(across(everything(), ~ all(sum(is.na(.x))) > 0)) %>% 
     select(where(isTRUE)) %>%
     colnames() -> columns_to_remove
 
-training %<>% 
+df_training %<>% 
     select(!all_of(columns_to_remove) & !X1) %>%
     mutate(across(where(is.character), as.factor))
 
-testing %<>% 
+df_testing %<>% 
     select(!all_of(columns_to_remove) & !X1 & !problem_id) %>%
     mutate(across(where(is.character), as.factor))
 
-training %<>% 
+df_training %<>% 
     mutate(
         cvtd_timestamp = as.character(cvtd_timestamp) %>% 
             strptime("%d/%m/%Y %H:%M")
@@ -102,7 +100,7 @@ training %<>%
         cvtd_timestamp = as.character(cvtd_timestamp)
     )
 
-testing %<>% 
+df_testing %<>% 
     mutate(
         cvtd_timestamp = as.character(cvtd_timestamp) %>% 
             strptime("%d/%m/%Y %H:%M")
@@ -117,157 +115,432 @@ testing %<>%
     mutate(
         cvtd_timestamp = factor(as.character(cvtd_timestamp))
     )
-
-skimr::skim(training)
-# skimr::skim(testing)
 ```
 
 ```{r}
-df_split <- initial_split(training, strata = classe)
+set.seed(42)
+data_split <- initial_split(df_training, strata = classe, prop = 0.8)
+data_split
 
-df_train <- training(df_split)
-df_test  <- testing(df_split)
+data_split %>% 
+    training %>% 
+    glimpse()
 
-nrow(df_train)/nrow(training)
+data_recipe <-
+    training(data_split) %>% 
+    recipe(classe ~ .) %>% 
+    step_corr(all_numeric()) %>% 
+    step_center(all_numeric(), -all_outcomes()) %>% 
+    step_scale(all_numeric(), -all_outcomes()) %>% 
+    step_rm(cvtd_timestamp) %>% 
+    prep()
 
-df_train %>% 
-    count(classe) %>% 
-    mutate(prop = n/sum(n))
 
-df_test %>% 
-    count(classe) %>% 
-    mutate(prop = n/sum(n))
+data_training <- 
+    juice(data_recipe)
+
+data_training %>% 
+    glimpse()
+
+data_testing <- 
+    data_recipe %>% 
+    bake(testing(data_split))
+
+data_testing %>% 
+    glimpse()
+
 ```
 
+## create 10-fold cross validation
+
 ```{r}
-rf_mod <- 
-    rand_forest(trees = 1000) %>% 
-    set_engine("ranger", num.threads = parallel::detectCores()) %>% 
+set.seed(42)
+folds <-
+    vfold_cv(data_training, v = 10, strata = classe)
+
+rf_mod <-
+    rand_forest(trees = 1000, mtry = tune(), min_n = tune()) %>%
+    set_engine("ranger", num.threads = parallel::detectCores()) %>%
     set_mode("classification")
 
-data_recipe <- 
-    recipe(classe ~ ., data = training) %>% 
-    step_rm(cvtd_timestamp) %>% 
-    step_dummy(all_nominal(), -all_outcomes()) %>% 
-    step_zv(all_predictors())
+rf_recp <- 
+    recipe(classe ~ ., data = data_training)
+    
+    
+    
+rf_wf <-
+    workflow() %>%
+    add_recipe(rf_recp) %>% 
+    add_model(rf_mod) # %>%
+    # add_formula(classe ~ .)
 
-rf_fit <- 
-    rf_mod %>% 
-    fit(classe ~ ., data = df_train)
+tune_res <- tune_grid(
+    rf_wf,
+    resamples = folds,
+    grid = 20
+)
 
-rf_fit
+set.seed(42)
+rf_fit_rs <-
+    rf_wf %>%
+    fit_resamples(folds)
+
+rf_fit_rs %>% 
+    collect_metrics()
 ```
 
-```{r}
-rf_training_pred <- 
-    predict(rf_fit, df_train) %>% 
-    bind_cols(predict(rf_fit, df_train, type = "prob")) %>% 
-    bind_cols(df_train %>% 
-                  select(classe))
-```
+
+## random forest
 
 ```{r}
-rf_training_pred %>% 
-    roc_auc(truth = classe, .pred_A, .pred_B, .pred_C, .pred_D, .pred_E)
+library(ranger)
+set.seed(42)
+model_ranger <- 
+    rand_forest(trees = 1000, mode = "classification") %>% 
+    set_engine("ranger", num.threads = parallel::detectCores()) %>% 
+    fit(classe ~ ., data = data_training)
 
-rf_training_pred %>% 
-    accuracy(truth = classe, .pred_class)
-```
+model_ranger %>% 
+    predict(data_testing) %>% 
+    bind_cols(data_testing) %>% 
+    metrics(truth = classe, estimate = .pred_class)
 
-```{r}
-rf_testing_pred <- 
-    predict(rf_fit, df_test) %>% 
-    bind_cols(predict(rf_fit, df_test, type = "prob")) %>% 
-    bind_cols(df_test %>% select(classe))
-```
-
-```{r}
-rf_testing_pred %>% 
-    roc_auc(truth = classe, .pred_A, .pred_B, .pred_C, .pred_D, .pred_E)
-
-rf_testing_pred %>% 
-    accuracy(truth = classe, .pred_class)
-
-rf_testing_pred %>% 
-    roc_curve(truth = classe, .pred_A, .pred_B, .pred_C, .pred_D, .pred_E) %>% 
+model_ranger %>% 
+    predict(data_testing, type = "prob") %>% 
+    bind_cols(data_testing) %>% 
+    gain_curve(classe, .pred_A:.pred_E) %>%
     autoplot()
+
+model_ranger %>% 
+    predict(data_testing, type = "prob") %>% 
+    bind_cols(data_testing) %>% 
+    roc_curve(classe, .pred_A:.pred_E) %>% 
+    autoplot()
+
+model_ranger %>% 
+    predict(data_testing, type = "prob") %>% 
+    bind_cols(predict(model_ranger, data_testing)) %>% 
+    bind_cols(select(data_testing, classe)) %>% 
+    metrics(classe, .pred_A:.pred_E, estimate = .pred_class)
+
 ```
 
+## Other
+
 ```{r}
-library(Rtsne)
+library(kernlab)
 set.seed(42)
+model_svm <- 
+    svm_poly() %>% 
+    set_engine("kernlab") %>% 
+    set_mode("classification") %>% 
+    fit(classe ~ ., data = data_training)
 
-iris_unique <- unique(iris)
-tsne_out <- Rtsne(
-    as.matrix(iris_unique[, 1:4]),
-    perplexity = 30,
-    dims = 3,
-    theta = 0.0,
-    pca = T,
-    max_iter = 1E3,
-    pca_scale = T,
-    verbose = T,
-    eta = 200.0,
-    num_threads = parallel::detectCores())
+model_svm %>% 
+    predict(data_testing, type = "prob") %>% 
+    bind_cols(data_testing) %>% 
+    gain_curve(classe, .pred_A:.pred_E) %>%
+    autoplot()
 
-plot(tsne_out$Y, col = iris_unique$Species, asp = 1)
+model_svm %>% 
+    predict(data_testing, type = "prob") %>% 
+    bind_cols(data_testing) %>% 
+    roc_curve(classe, .pred_A:.pred_E) %>% 
+    autoplot()
 
-library(plotly)
-plot_ly(
-    x = tsne_out$Y[, 1],
-    y = tsne_out$Y[, 2],
-    z = tsne_out$Y[, 3],
-    type = "scatter3d",
-    mode = "markers",
-    color = iris_unique$Species
-)
+model_svm %>% 
+    predict(data_testing, type = "prob") %>% 
+    bind_cols(predict(model_svm, data_testing)) %>% 
+    bind_cols(select(data_testing, classe)) %>% 
+    metrics(classe, .pred_A:.pred_E, estimate = .pred_class)
+
+
 ```
 
 ```{r}
-library(Rtsne)
+library(nnet)
 set.seed(42)
-training %>% 
-    # filter(classe == "A" | classe == "D") %>% 
-    # slice_sample(n = 500) %>% 
-    select(where(is.numeric)) -> df
+model_nn <- 
+    mlp() %>% 
+    set_engine("nnet") %>% 
+    set_mode("classification") %>% 
+    fit(classe ~ ., data = data_training)
 
-training %>% 
-    # filter(classe == "A" | classe == "D") %>% 
-    # slice_sample(n = 500) %>% 
-    .$classe %>% 
-    as.factor() -> df_color
+model_nn %>% 
+    predict(data_testing, type = "prob") %>% 
+    bind_cols(data_testing) %>% 
+    gain_curve(classe, .pred_A:.pred_E) %>%
+    autoplot()
 
-tsne_train <-
-    Rtsne(
-        df,
-        perplexity = 30,
-        dims = 3,
-        theta = 0.5,
-        pca = T,
-        max_iter = 3E3,
-        pca_scale = T,
-        verbose = T,
-        eta = 200.0,
-        num_threads = parallel::detectCores() - 2)
+model_nn %>% 
+    predict(data_testing, type = "prob") %>% 
+    bind_cols(data_testing) %>% 
+    roc_curve(classe, .pred_A:.pred_E) %>% 
+    autoplot()
 
+model_nn %>% 
+    predict(data_testing, type = "prob") %>% 
+    bind_cols(predict(model_nn, data_testing)) %>% 
+    bind_cols(select(data_testing, classe)) %>% 
+    metrics(classe, .pred_A:.pred_E, estimate = .pred_class)
 
 
-a <- tsne_train$Y %>% as_tibble()
+```
 
-ggplot(a, aes(V1, V2, color = df_color)) +
-    geom_point()
+
+```{r}
+library(kknn)
+set.seed(42)
+model_kknn <- 
+    nearest_neighbor() %>% 
+    set_engine("kknn") %>% 
+    set_mode("classification") %>% 
+    fit(classe ~ ., data = data_training)
+
+model_kknn %>% 
+    predict(data_testing, type = "prob") %>% 
+    bind_cols(data_testing) %>% 
+    gain_curve(classe, .pred_A:.pred_E) %>%
+    autoplot()
+
+model_kknn %>% 
+    predict(data_testing, type = "prob") %>% 
+    bind_cols(data_testing) %>% 
+    roc_curve(classe, .pred_A:.pred_E) %>% 
+    autoplot()
+
+model_kknn %>% 
+    predict(data_testing, type = "prob") %>% 
+    bind_cols(predict(model_kknn, data_testing)) %>% 
+    bind_cols(select(data_testing, classe)) %>% 
+    metrics(classe, .pred_A:.pred_E, estimate = .pred_class)
+
+
 ```
 
 ```{r}
-library(plotly)
+set.seed(42)
+model_mr <- 
+    multinom_reg() %>% 
+    set_engine("nnet") %>% 
+    set_mode("classification") %>% 
+    fit(classe ~ ., data = data_training)
 
-plot_ly(
-    x = a$V1,
-    y = a$V2,
-    z = a$V3,
-    type = "scatter3d",
-    mode = "markers",
-    color = df_color
-)
+model_mr %>% 
+    predict(data_testing, type = "prob") %>% 
+    bind_cols(data_testing) %>% 
+    gain_curve(classe, .pred_A:.pred_E) %>%
+    autoplot()
+
+model_mr %>% 
+    predict(data_testing, type = "prob") %>% 
+    bind_cols(data_testing) %>% 
+    roc_curve(classe, .pred_A:.pred_E) %>% 
+    autoplot()
+
+model_mr %>% 
+    predict(data_testing, type = "prob") %>% 
+    bind_cols(predict(model_mr, data_testing)) %>% 
+    bind_cols(select(data_testing, classe)) %>% 
+    metrics(classe, .pred_A:.pred_E, estimate = .pred_class)
+
+model_mr %>% 
+    predict(data_testing, type = "prob") %>% 
+    bind_cols(predict(model_mr, data_testing)) %>% 
+    bind_cols(select(data_testing, classe)) %>% 
+    glimpse()
 ```
+
+<!-- ```{r} -->
+<!-- set.seed(1) -->
+<!-- val_set <-  -->
+<!--     validation_split(training, -->
+<!--                      strata = classe, -->
+<!--                      prop = 0.80) -->
+
+<!-- lr_mod <-  -->
+<!--     logistic_reg(penalty = tune(), mixture = 1) %>%  -->
+<!--     set_engine("glmnet", family = "multinomial") -->
+
+<!-- lr_recipe <-  -->
+<!--     recipe(classe ~ ., data = training) %>%  -->
+<!--     step_dummy(all_nominal(), -all_outcomes()) %>%  -->
+<!--     step_zv(all_predictors()) %>%  -->
+<!--     step_normalize(all_predictors()) -->
+
+<!-- lr_workflow <-  -->
+<!--     workflow() %>%  -->
+<!--     add_model(lr_mod) %>%  -->
+<!--     add_recipe(lr_recipe) -->
+
+<!-- lr_reg_grid <- tibble(penalty = 10 ^ seq(-4, -1, length.out = 30)) -->
+
+<!-- lr_res <-  -->
+<!--     lr_workflow %>%  -->
+<!--     tune_grid(val_set, -->
+<!--               grid = lr_reg_grid, -->
+<!--               control = control_grid(save_pred = TRUE), -->
+<!--               metrics = metric_set(roc_auc)) -->
+
+<!-- lr_plot <- -->
+<!--     lr_res %>%  -->
+<!--     collect_metrics() %>%  -->
+<!--     ggplot(aes(penalty, mean)) + -->
+<!--         geom_point() + -->
+<!--         geom_line() + -->
+<!--         ylab("Area under the ROC curve") + -->
+<!--         scale_x_log10(labels = scales::label_number()) -->
+
+<!-- lr_plot -->
+<!-- ``` -->
+
+
+<!-- ```{r} -->
+<!-- df_split <- initial_split(training, strata = classe) -->
+
+<!-- df_train <- training(df_split) -->
+<!-- df_test  <- testing(df_split) -->
+
+<!-- nrow(df_train)/nrow(training) -->
+
+<!-- df_train %>%  -->
+<!--     count(classe) %>%  -->
+<!--     mutate(prop = n/sum(n)) -->
+
+<!-- df_test %>%  -->
+<!--     count(classe) %>%  -->
+<!--     mutate(prop = n/sum(n)) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- rf_mod <-  -->
+<!--     rand_forest(trees = 1000) %>%  -->
+<!--     set_engine("ranger", num.threads = parallel::detectCores()) %>%  -->
+<!--     set_mode("classification") -->
+
+<!-- data_recipe <-  -->
+<!--     recipe(classe ~ ., data = training) %>%  -->
+<!--     step_rm(cvtd_timestamp) %>%  -->
+<!--     step_dummy(all_nominal(), -all_outcomes()) %>%  -->
+<!--     step_zv(all_predictors()) -->
+
+<!-- rf_fit <-  -->
+<!--     rf_mod %>%  -->
+<!--     fit(classe ~ ., data = df_train) -->
+
+<!-- rf_fit -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- rf_training_pred <-  -->
+<!--     predict(rf_fit, df_train) %>%  -->
+<!--     bind_cols(predict(rf_fit, df_train, type = "prob")) %>%  -->
+<!--     bind_cols(df_train %>%  -->
+<!--                   select(classe)) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- rf_training_pred %>%  -->
+<!--     roc_auc(truth = classe, .pred_A, .pred_B, .pred_C, .pred_D, .pred_E) -->
+
+<!-- rf_training_pred %>%  -->
+<!--     accuracy(truth = classe, .pred_class) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- rf_testing_pred <-  -->
+<!--     predict(rf_fit, df_test) %>%  -->
+<!--     bind_cols(predict(rf_fit, df_test, type = "prob")) %>%  -->
+<!--     bind_cols(df_test %>% select(classe)) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- rf_testing_pred %>%  -->
+<!--     roc_auc(truth = classe, .pred_A, .pred_B, .pred_C, .pred_D, .pred_E) -->
+
+<!-- rf_testing_pred %>%  -->
+<!--     accuracy(truth = classe, .pred_class) -->
+
+<!-- rf_testing_pred %>%  -->
+<!--     roc_curve(truth = classe, .pred_A, .pred_B, .pred_C, .pred_D, .pred_E) %>%  -->
+<!--     autoplot() -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- library(Rtsne) -->
+<!-- set.seed(42) -->
+
+<!-- iris_unique <- unique(iris) -->
+<!-- tsne_out <- Rtsne( -->
+<!--     as.matrix(iris_unique[, 1:4]), -->
+<!--     perplexity = 30, -->
+<!--     dims = 3, -->
+<!--     theta = 0.0, -->
+<!--     pca = T, -->
+<!--     max_iter = 1E3, -->
+<!--     pca_scale = T, -->
+<!--     verbose = T, -->
+<!--     eta = 200.0, -->
+<!--     num_threads = parallel::detectCores()) -->
+
+<!-- plot(tsne_out$Y, col = iris_unique$Species, asp = 1) -->
+
+<!-- library(plotly) -->
+<!-- plot_ly( -->
+<!--     x = tsne_out$Y[, 1], -->
+<!--     y = tsne_out$Y[, 2], -->
+<!--     z = tsne_out$Y[, 3], -->
+<!--     type = "scatter3d", -->
+<!--     mode = "markers", -->
+<!--     color = iris_unique$Species -->
+<!-- ) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- library(Rtsne) -->
+<!-- set.seed(42) -->
+<!-- training %>%  -->
+<!--     # filter(classe == "A" | classe == "D") %>%  -->
+<!--     # slice_sample(n = 500) %>%  -->
+<!--     select(where(is.numeric)) -> df -->
+
+<!-- training %>%  -->
+<!--     # filter(classe == "A" | classe == "D") %>%  -->
+<!--     # slice_sample(n = 500) %>%  -->
+<!--     .$classe %>%  -->
+<!--     as.factor() -> df_color -->
+
+<!-- tsne_train <- -->
+<!--     Rtsne( -->
+<!--         df, -->
+<!--         perplexity = 30, -->
+<!--         dims = 3, -->
+<!--         theta = 0.5, -->
+<!--         pca = T, -->
+<!--         max_iter = 3E3, -->
+<!--         pca_scale = T, -->
+<!--         verbose = T, -->
+<!--         eta = 200.0, -->
+<!--         num_threads = parallel::detectCores() - 2) -->
+
+
+
+<!-- a <- tsne_train$Y %>% as_tibble() -->
+
+<!-- ggplot(a, aes(V1, V2, color = df_color)) + -->
+<!--     geom_point() -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- library(plotly) -->
+
+<!-- plot_ly( -->
+<!--     x = a$V1, -->
+<!--     y = a$V2, -->
+<!--     z = a$V3, -->
+<!--     type = "scatter3d", -->
+<!--     mode = "markers", -->
+<!--     color = df_color -->
+<!-- ) -->
+<!-- ``` -->
 
