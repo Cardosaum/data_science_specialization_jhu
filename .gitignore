@@ -3,3 +3,13 @@ packrat/lib*/
 .Rhistory
 specdata/
 practice_assignment/
+# data I do not want to share
+**/old_stuff/
+programs/cdr/data/
+
+# default files produced by interpreter
+**/.Rhistory
+
+# knitr and R markdown default cache directories
+*_cache/
+*_files/
