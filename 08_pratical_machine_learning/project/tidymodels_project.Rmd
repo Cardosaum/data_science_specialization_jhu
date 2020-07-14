@@ -365,3 +365,28 @@ p_rf_heat
 # Conclusion
 
 So, based on this results, we can state that using a Random Forest model we can successfully predict new data with an accuracy of 99.8%.
+
+
+```{r predictions_test, include=FALSE, eval=FALSE}
+data_recipe <-
+    recipe(classe ~ ., data = data_train) %>% 
+    step_rm(cvtd_timestamp) %>% 
+    step_rm(new_window) %>% 
+    step_normalize(all_numeric(), -all_outcomes()) %>% 
+    step_corr(all_numeric(), -all_outcomes()) %>% 
+    step_nzv(all_numeric(), -all_outcomes()) %>% 
+    step_zv(all_numeric(), -all_outcomes()) %>% 
+    step_dummy(all_nominal(), -all_outcomes(), one_hot = TRUE)
+
+rf_wf_final <- 
+    workflow() %>% 
+    add_recipe(data_recipe) %>% 
+    add_model(rf_mod_final)
+
+ans_fit <- 
+    rf_wf_final %>% 
+    fit(data_train)
+
+ans_fit %>% 
+    predict(df_testing)
+```
