@@ -1,0 +1,325 @@
+---
+title: "Análise de dados do Enem " 
+subtitle: "Subtitle"
+author: "Matheus Cardoso"
+date: "`r format(Sys.time(), '%F')`"
+output: 
+  html_document: 
+    fig_caption: yes
+    fig_width: 10
+    fig_height: 6
+    highlight: zenburn
+    keep_md: yes
+    theme: simplex
+    toc: yes
+    number_sections: yes
+    code_folding: hide
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE, include = TRUE, cache = TRUE, warning = FALSE, message = FALSE)
+```
+
+```{r load_data}
+library(tidyverse)
+library(magrittr)
+# enem_file <- list.files(pattern = "parsed2019.csv$", recursive = T)
+# e <- read_csv(enem_file)
+```
+
+```{r process_data}
+# set.seed(1)
+# e %<>% 
+#     sample_frac(0.01)
+
+# e %<>% 
+#     # add_case(eu) %>% 
+#     mutate(me = if_else(NU_INSCRICAO == eu$NU_INSCRICAO, "Eu", "Outros")) %>% 
+#     mutate(me = as.factor(me)) %>% 
+#     mutate(across(where(is.character), as.factor),
+#            across(starts_with("TP_"), as.factor))
+# 
+# e %>% 
+#     filter(NU_NOTA_MT == 820.7,
+#            NU_NOTA_REDACAO == 660,
+#            NU_NOTA_CH == 687.5) -> eu
+
+nf_CiC <- function(dataframe_row, pMT = 3, pLC = 2, pCN = 2, pCH = 1, pREDACAO = 2) {
+    mt <- dataframe_row$NU_NOTA_MT * pMT
+    lc <- dataframe_row$NU_NOTA_LC * pLC
+    cn <- dataframe_row$NU_NOTA_CN * pCN
+    ch <- dataframe_row$NU_NOTA_CH * pCH
+    redacao <- dataframe_row$NU_NOTA_REDACAO * pREDACAO
+    pesoTotal <- pMT + pLC + pCN + pCH + pREDACAO
+    nf <- (mt + lc + cn + ch + redacao) / pesoTotal
+    nf
+}
+
+nf_engAero <- function(dataframe_row, pMT = 3, pLC = 1, pCN = 2, pCH = 1, pREDACAO = 3) {
+    mt <- dataframe_row$NU_NOTA_MT * pMT
+    lc <- dataframe_row$NU_NOTA_LC * pLC
+    cn <- dataframe_row$NU_NOTA_CN * pCN
+    ch <- dataframe_row$NU_NOTA_CH * pCH
+    redacao <- dataframe_row$NU_NOTA_REDACAO * pREDACAO
+    pesoTotal <- pMT + pLC + pCN + pCH + pREDACAO
+    nf <- (mt + lc + cn + ch + redacao) / pesoTotal
+    nf
+}
+
+# e %>% 
+#     filter(me != "Eu") %>% 
+#     mutate(nfEngAero = nf_engAero(.),
+#            nfCiC     = nf_CiC(.)) %>% 
+#     select(nfCiC, nfEngAero, everything()) %>% 
+#     arrange(-nfCiC, -nfEngAero) %>% 
+#     filter(nfCiC >= 814.02) -> os_bons
+# 
+# eu %<>% 
+#     mutate(nfEngAero = nf_engAero(.),
+#            nfCiC     = nf_CiC(.)) %>% 
+#     select(nfCiC, nfEngAero, everything())
+# 
+# rm(e)
+# gc()
+# 
+# os_bons %<>% 
+#     add_case(eu)
+
+# write_rds(os_bons, "data/os_bons.rds")
+os_bons <- read_rds("data/os_bons.rds")
+
+os_bons %>% glimpse()
+
+os_bons %>% 
+    ggplot() + 
+    geom_histogram(aes(nfCiC, fill = me))
+
+os_bons %>% 
+    ggplot() + 
+    geom_histogram(aes(NU_NOTA_REDACAO, fill = me))
+
+```
+
+## Como a nota se relaciona com variávies sociais?
+
+ - Idade
+ - Sexo
+ - UF de Residência
+ - Raça
+
+```{r eda}
+
+e %>% 
+    filter(NU_INSCRICAO == eu$NU_INSCRICAO) %>% 
+    glimpse()
+
+e %>% 
+    group_by(me) %>% 
+    arrange(-NU_NOTA_REDACAO, -NU_NOTA_MT, -NU_NOTA_CN, -NU_NOTA_LC, -NU_NOTA_CH) %>% 
+    slice_head(n = (nrow(e) * 0.1)) -> topN
+
+# write_rds(topN, "data/enem2019.rds")
+rm(list = ls())
+gc()
+e <- read_rds("data/enem2019.rds")
+e %>% 
+    filter(NU_NOTA_MT == 820.7,
+           NU_NOTA_REDACAO == 660,
+           NU_NOTA_CH == 687.5) -> eu
+    
+
+e %>% 
+    group_by(me) %>% 
+    arrange(-NU_NOTA_REDACAO, -NU_NOTA_MT, -NU_NOTA_CN, -NU_NOTA_LC, -NU_NOTA_CH) %>% 
+    slice_head(n = (nrow(e) * 0.1)) %>% 
+    summarise(
+        NU_NOTA_MT = mean(NU_NOTA_MT, na.rm=T),
+        NU_NOTA_CN = mean(NU_NOTA_CN, na.rm=T),
+        NU_NOTA_CH = mean(NU_NOTA_CH, na.rm=T),
+        NU_NOTA_LC = mean(NU_NOTA_LC, na.rm=T),
+        NU_NOTA_REDACAO = mean(NU_NOTA_REDACAO, na.rm=T)) -> topN_summarise
+
+e %>% 
+    filter(me == "Eu") %>%
+    glimpse()
+
+e %>% glimpse()
+
+library(ggsci)
+e %>% 
+    ggplot() +
+    geom_histogram(aes(NU_NOTA_MT, fill=me)) + 
+    geom_vline(aes(xintercept = eu$NU_NOTA_MT), color="orange") +
+    guides(fill = F)
+gc()
+
+topN %>% 
+    ggplot() +
+    geom_histogram(aes(NU_NOTA_REDACAO, fill=me)) + 
+    geom_vline(aes(xintercept = eu$NU_NOTA_REDACAO), color="orange") +
+    guides(fill = F)
+gc()
+
+topN %>% 
+    ggplot() +
+    geom_histogram(aes(NU_NOTA_REDACAO, fill=me)) + 
+    geom_vline(aes(xintercept = eu$NU_NOTA_REDACAO), color="orange") +
+    facet_wrap( ~ SG_UF_RESIDENCIA)
+
+e %>% filter(me == "Eu") %>% glimpse()
+
+# e %>%
+#     filter(me == "Eu") %>% 
+#     mutate(NU_NOTA_REDACAO = 1000) %>% 
+#     mutate(NU_NOTA_MT = 900) %>% 
+#     mutate(NU_NOTA_CN = 750) %>% 
+#     # glimpse()
+#     nf()
+
+e %>% 
+    filter(me != "Eu") %>% 
+    mutate(nfEngAero = nf_engAero(.),
+           nfCiC     = nf_CiC(.)) %>% 
+    select(nfCiC, nfEngAero, everything()) %>% 
+    arrange(-nfCiC, -nfEngAero) %>% 
+    filter(nfCiC >= 814.02)
+
+e %>% 
+    ggplot() +
+    geom_histogram(aes(NU_NOTA_REDACAO, fill=me)) + 
+    geom_vline(aes(xintercept = eu$NU_NOTA_REDACAO), color="orange") +
+    guides(fill = F)
+
+e %>% 
+    ggplot() +
+    geom_histogram(aes(NU_NOTA_MT, fill=me)) + 
+    geom_vline(aes(xintercept = eu$NU_NOTA_MT), color="orange") +
+    guides(fill = F)
+
+e %>% 
+    ggplot() +
+    geom_histogram(aes(NU_NOTA_MT, fill=me)) + 
+    geom_vline(aes(xintercept = eu$NU_NOTA_MT), color="orange") +
+    guides(fill = F) +
+    facet_wrap( ~ NU_NOTA_COMP1) + 
+    theme(axis.text.x = element_text(angle = 45))
+
+e %>% 
+    group_by(me) %>% 
+    arrange(-NU_NOTA_REDACAO, -NU_NOTA_MT, -NU_NOTA_CN, -NU_NOTA_LC, -NU_NOTA_CH) %>% 
+    slice_head(n = 1E3) %>% 
+    summarise(idade = mean(NU_IDADE),
+              NU_NOTA_CN = mean(NU_NOTA_CN, na.rm=T),
+              NU_NOTA_CH = mean(NU_NOTA_CH, na.rm=T),
+              NU_NOTA_LC = mean(NU_NOTA_LC, na.rm=T),
+              NU_NOTA_MT = mean(NU_NOTA_MT, na.rm=T),
+              NU_NOTA_COMP1 = mean(NU_NOTA_COMP1, na.rm=T),
+              NU_NOTA_COMP2 = mean(NU_NOTA_COMP2, na.rm=T),
+              NU_NOTA_COMP3 = mean(NU_NOTA_COMP3, na.rm=T),
+              NU_NOTA_COMP4 = mean(NU_NOTA_COMP4, na.rm=T),
+              NU_NOTA_COMP5 = mean(NU_NOTA_COMP5, na.rm=T),
+              NU_NOTA_REDACAO = mean(NU_NOTA_REDACAO, na.rm=T)) %>% 
+    ggplot() +
+    geom_point(aes(me, NU_NOTA_MT))
+
+e %>% 
+    filter(SG_UF_RESIDENCIA == "RJ") %>% 
+    ggplot() +
+    geom_histogram(aes(NU_NOTA_MT))
+
+e %>% 
+    ggplot() +
+    geom_histogram(aes(NU_NOTA_CN)) +
+    facet_wrap(~ SG_UF_RESIDENCIA)
+
+e %>% 
+    filter(TP_STATUS_REDACAO == 1, IN_TREINEIRO == 0)
+```
+
+```{r}
+os_bons %>% 
+    group_by(SG_UF_RESIDENCIA)
+```
+
+
+```{r}
+# install.packages("tmaptools")
+library(sf)
+library(raster)
+library(dplyr)
+library(tidyverse)
+library(spData)
+library(spDataLarge)
+library(tmap)    # for static and interactive maps
+library(leaflet) # for interactive maps
+library(ggplot2) # tidyverse data visualization package
+library(broom)
+library(magrittr)
+# library(geojsonio)
+# install.packages("V8")
+
+# brazil <- geojson_read("https://github.com/tbrugz/geodata-br/blob/master/geojson/geojs-100-mun.json?raw=true", what = "sp")
+
+# brazil <- st_read("data/geojs-100-mun.json")
+# brazil %>% str
+# brazil %>% 
+#     tidy()
+
+# brazil <- st_read("data/state-codes-1.4.0/data/dump_osm/_country.geojson")
+# sp <- st_read("data/state-codes-1.4.0/data/dump_osm/SP.geojson")
+# sp <- st_read("data/state-codes-1.4.0/data/dump_wikidata/SP.json")
+
+brazil <- st_read("data/gis-dataset-brasil/uf/geojson/uf.json")
+
+brazil %<>% 
+    mutate(
+        NOME_UF = gsub("\xe1", "á", NOME_UF),
+        NOME_UF = gsub("\xed", "í", NOME_UF),
+        NOME_UF = gsub("\xf4", "ô", NOME_UF),
+        NOME_UF = gsub("\xe3", "ã", NOME_UF))
+
+
+tm_shape(brazil) +
+    tm_borders() +
+    tm_fill()
+
+brazil %>% 
+    group_by(UF_05) %>% 
+    glimpse()
+
+os_bons %>% 
+    group_by(SG_UF_RESIDENCIA) %>% 
+    summarise("Vestibulandos" = n()) %>% 
+    inner_join(brazil, by = c("SG_UF_RESIDENCIA" = "UF_05")) %>% 
+    st_as_sf() %>% 
+    mutate(breaks = seq(from = min(.$Vestibulandos), to = max(.$Vestibulandos), length.out = nrow(.))) %>% 
+    .$breaks -> breaks_vestibulandos
+
+os_bons %>% 
+    group_by(SG_UF_RESIDENCIA) %>% 
+    summarise("Vestibulandos" = n()) %>% 
+    inner_join(brazil, by = c("SG_UF_RESIDENCIA" = "UF_05")) %>% 
+    st_as_sf() %>% 
+    mutate(breaks = seq(from = min(.$Vestibulandos), to = max(.$Vestibulandos), length.out = nrow(.))) %>% 
+    tm_shape() +
+    tm_polygons("Vestibulandos", legend.show = F, breaks = breaks_vestibulandos, id="Vestibulandos") +
+    
+brazil %>% class
+
+tmap_mode("view")
+tm_shape(brazil) +
+    # tm_fill(col = "NOME_UF") +
+    # tm_borders() +
+    tm_polygons(col = "NOME_UF")
+
+```
+
+```{r}
+tmap_mode("view")
+tm_shape(World) +
+    tm_polygons(c("HPI", "economy")) +
+    tm_facets(sync = TRUE, ncol = 2)
+```
+
