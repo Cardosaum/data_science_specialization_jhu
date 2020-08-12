@@ -7,6 +7,7 @@ practice_assignment/
 **/old_stuff/
 programs/cdr/data/
 **/data/*
+rsconnect/
 
 # default files produced by interpreter
 **/.Rhistory
