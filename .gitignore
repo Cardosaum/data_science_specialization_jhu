@@ -6,6 +6,7 @@ practice_assignment/
 # data I do not want to share
 **/old_stuff/
 programs/cdr/data/
+**/data/*
 
 # default files produced by interpreter
 **/.Rhistory
