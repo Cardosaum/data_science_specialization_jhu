@@ -25,8 +25,12 @@ knitr::opts_chunk$set(echo = TRUE, include = TRUE, cache = TRUE, warning = FALSE
 ```{r load_data}
 library(tidyverse)
 library(magrittr)
-# enem_file <- list.files(pattern = "parsed2019.csv$", recursive = T)
-# e <- read_csv(enem_file)
+library(forcats)
+library(sf)
+library(tmap)
+
+enem_file <- list.files(pattern = "parsed2019.csv$", recursive = T)
+e <- read_csv(enem_file)
 ```
 
 ```{r process_data}
@@ -67,6 +71,152 @@ nf_engAero <- function(dataframe_row, pMT = 3, pLC = 1, pCN = 2, pCH = 1, pREDAC
     nf <- (mt + lc + cn + ch + redacao) / pesoTotal
     nf
 }
+
+e %<>% 
+    arrange(-NU_NOTA_MT, -NU_NOTA_CN, -NU_NOTA_REDACAO, -NU_NOTA_LC, -NU_NOTA_CH)
+
+e %>% 
+    group_by(SG_UF_RESIDENCIA) %>% 
+    summarise(
+        NU_NOTA_MT = mean(NU_NOTA_MT, na.rm=T),
+        NU_NOTA_CN = mean(NU_NOTA_CN, na.rm=T),
+        NU_NOTA_CH = mean(NU_NOTA_CH, na.rm=T),
+        NU_NOTA_LC = mean(NU_NOTA_LC, na.rm=T),
+        NU_NOTA_REDACAO = mean(NU_NOTA_REDACAO, na.rm=T)) -> nota_mean_summarise
+
+nota_mean_summarise
+    
+brazil <- st_read("data/gis-dataset-brasil/uf/geojson/uf.json")
+brazil %<>% 
+    mutate(
+        NOME_UF = gsub("\xe1", "á", NOME_UF),
+        NOME_UF = gsub("\xed", "í", NOME_UF),
+        NOME_UF = gsub("\xf4", "ô", NOME_UF),
+        NOME_UF = gsub("\xe3", "ã", NOME_UF))
+
+tmap_mode("view")
+nota_mean_summarise %>% 
+    group_by(SG_UF_RESIDENCIA) %>% 
+    inner_join(brazil, by = c("SG_UF_RESIDENCIA" = "UF_05")) %>% 
+    st_as_sf() %>% 
+    tm_shape() +
+    tm_polygons("NU_NOTA_MT")
+
+e %>% 
+    select(!matches("COMP")) %>% 
+    select(SG_UF_RESIDENCIA, matches("NOTA"), starts_with("TP_")) %>% 
+    arrange(-NU_NOTA_MT, -NU_NOTA_CN, -NU_NOTA_REDACAO, -NU_NOTA_LC, -NU_NOTA_CH) %>% 
+    group_by(SG_UF_RESIDENCIA, TP_SEXO, TP_COR_RACA) %>% 
+    slice_head(prop = 0.1) %>%
+    mutate(across(starts_with("TP_"), as.factor)) %>% 
+    mutate(TP_COR_RACA = case_when(
+        TP_COR_RACA == 0 ~ "Não Declarado",
+        TP_COR_RACA == 1 ~ "Branca",
+        TP_COR_RACA == 2 ~ "Preta",
+        TP_COR_RACA == 3 ~ "Parda",
+        TP_COR_RACA == 4 ~ "Amarela",
+        TP_COR_RACA == 5 ~ "Indígena"
+    )) %>% 
+    summarise(
+        NU_NOTA_MT = mean(NU_NOTA_MT, na.rm=T),
+        NU_NOTA_CN = mean(NU_NOTA_CN, na.rm=T),
+        NU_NOTA_CH = mean(NU_NOTA_CH, na.rm=T),
+        NU_NOTA_LC = mean(NU_NOTA_LC, na.rm=T),
+        NU_NOTA_REDACAO = mean(NU_NOTA_REDACAO, na.rm=T)) %>% 
+        mutate(across(starts_with("TP_"), as.factor)) %>% 
+        mutate(TP_COR_RACA = fct_relevel(TP_COR_RACA, "Não Declarado", after = Inf)) -> enem_top_summarise
+
+enem_top_summarise %>% 
+    filter(SG_UF_RESIDENCIA == "RJ") %>% 
+    # glimpse()
+    ggplot() +
+    geom_point(aes(TP_SEXO, NU_NOTA_MT, color = TP_COR_RACA), alpha = 0.6)
+    # geom_point(aes(TP_SEXO, NU_NOTA_MT, color = TP_COR_RACA)) + 
+    # facet_wrap(~ SG_UF_RESIDENCIA)
+
+# e %>%
+#     mutate(nota = nf_CiC(.)) %>% 
+#     select(nota, starts_with("NU_NOTA"), everything()) %>% 
+#     arrange(-nota) %>% 
+#     select(nota, matches("NU_NOTA_."), SG_UF_RESIDENCIA) %>% 
+#     select(!matches("COMP")) %>% 
+#     group_by(SG_UF_RESIDENCIA) %>% 
+#     slice_head(prop = 0.1) %>% 
+#     summarise(
+#         NU_NOTA_MT = mean(NU_NOTA_MT, na.rm=T),
+#         NU_NOTA_CN = mean(NU_NOTA_CN, na.rm=T),
+#         NU_NOTA_CH = mean(NU_NOTA_CH, na.rm=T),
+#         NU_NOTA_LC = mean(NU_NOTA_LC, na.rm=T),
+#         NU_NOTA_REDACAO = mean(NU_NOTA_REDACAO, na.rm=T)) -> enem_top_summarise
+
+library(leaflet)
+library(glue)
+tmap_mode("view")
+enem_top_summarise %>% 
+    inner_join(brazil, by = c("SG_UF_RESIDENCIA" = "UF_05")) %>% 
+    st_as_sf() %>% 
+    filter(TP_COR_RACA == "Preta") %>% 
+    tm_shape() +
+    tm_polygons("NU_NOTA_MT",
+                popup.vars = colnames(NAMESSS)[1:12],
+                # id = "NU_NOTA_MT",
+                title = glue("Nota para pessoas de raça:<br /><i>{raça}</i>")) +
+    tm_facets(by = "TP_SEXO", sync = T, ncol = 2) +
+	tm_text("SG_UF_RESIDENCIA")
+
+enem_top_summarise$TP_COR_RACA %>% attr("levels")
+
+nz %>% str
+brazil %>% str
+
+brazil %>% 
+    st_as_sf() %>% 
+    tm_shape() +
+    tm_polygons()
+    
+
+tm_shape(nz) +
+    tm_fill() +
+    tm_borders()
+
+raça <- "Branca"
+# write_rds(enem_top_summarise, "data/enem_top_summarise.rds")
+enem_top_summarise %>% 
+    glimpse()
+    
+```
+
+```{r}
+data(World)
+
+# Constant fill
+tm_shape(World) + tm_fill("darkolivegreen3") + tm_format("World", title="A green World")
+
+# Borders only
+tm_shape(World) + tm_borders()
+
+# Data variable containing colours values
+World$isNLD <- ifelse(World$name=="Netherlands", "darkorange", "darkolivegreen3")
+tm_shape(World) +
+    tm_fill("isNLD") +
+tm_layout("Find the Netherlands!")
+
+tm_shape(World) +
+	tm_polygons("economy", title="Economy", id="name") +
+	tm_text("iso_a3", size="AREA", scale=1.5) +
+	tm_format("World")
+
+# Numeric data variable
+tm_shape(World) +
+	tm_polygons("HPI", palette="RdYlGn", style="cont", n=8,
+		title="Happy Planet Index", id="name") +
+	tm_text("iso_a3", size="AREA", scale=1.5) +
+tm_style("grey") +
+tm_format("World")
+```
+
+
+```{r}
 
 # e %>% 
 #     filter(me != "Eu") %>% 
@@ -321,5 +471,10 @@ tmap_mode("view")
 tm_shape(World) +
     tm_polygons(c("HPI", "economy")) +
     tm_facets(sync = TRUE, ncol = 2)
+```
+
+```{r}
+e %>% 
+    group_by(SG_UF_RESIDENCIA)
 ```
 
