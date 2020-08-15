@@ -1,0 +1,39 @@
+---
+title: "Coursera<br>John Hopkins University<br>Developing Data Products"
+author: "Matheus Cardoso"
+date: "`r format(Sys.time(), '%F')`"
+output:
+    revealjs::revealjs_presentation:
+        theme: night
+        highlight: pygments
+        center: true
+editor_options:
+  chunk_output_type: console
+---
+
+# Week 4 - Assignment
+
+Data Analysis of the largest national exam for High School education in Brazil
+
+ - ENEM - Exame Nacional do Ensino Médio
+ 
+# The Analysis
+
+## What is ENEM ?
+
+[ENEM](https://www.wikiwand.com/en/Exame_Nacional_do_Ensino_M%C3%A9dio) is a non-mandatory, standardized Brazilian national exam, which evaluates high school students in Brazil.
+
+## The data
+
+I processed the 2019 data provided by the organization of the exam.
+
+The original data was too large for an web app with <code><= 2GB</code> RAM memory
+
+Therefore, I filtered only those students who had a score high enough to pass in Computer Science at [University of São Paulo (USP)](https://www.wikiwand.com/en/University_of_S%C3%A3o_Paulo).
+
+# The App
+![](https://i.imgur.com/M4Op3JY.png)
+
+## Online site
+
+[The link for the living demo of the app can be found here.](https://cardosaum.shinyapps.io/Matheus-Cardoso-DDP-JHU-Week4/)

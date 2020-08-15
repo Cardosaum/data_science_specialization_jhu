@@ -1,16 +1,16 @@
 library(shiny)
 library(sf)
-library(raster)
-library(dplyr)
 library(tidyverse)
-library(spData)
-library(spDataLarge)
 library(tmap)    # for static and interactive maps
-library(leaflet) # for interactive maps
-library(ggplot2) # tidyverse data visualization package
-library(broom)
 library(magrittr)
 library(forcats)
+# library(raster)
+# library(spData)
+# library(spDataLarge)
+# library(leaflet) # for interactive maps
+# library(ggplot2) # tidyverse data visualization package
+# library(broom)
+# library(dplyr)
 enem_df <- read_rds("data/enem.rds")
 xtext <- "Mathematics"
 
@@ -33,7 +33,7 @@ ui <- fluidPage(
                                     "Essay" = "NU_NOTA_REDACAO",
                                     "Portuguese" = "NU_NOTA_LC",
                                     "Natural Sciences (Chemistry/Physics/Biology)" = "NU_NOTA_CN",
-                                    "Human Sciences (History/Geograpy/Filosophy/Sociology)" = "NU_NOTA_CH")),
+                                    "Human Sciences (History/Geograpy/Philosophy/Sociology)" = "NU_NOTA_CH")),
             selectInput(inputId = "wrap_var",
                         label = "Facet Plot by which variable?",
                         choices = c("School Type" = "TP_ESCOLA",
@@ -76,7 +76,7 @@ ui <- fluidPage(
 # Define server logic required to draw a histogram ----
 server <- function(input, output) {
 
-    brazil <- st_read("data/gis-dataset-brasil/uf/geojson/uf.json")
+    brazil <- st_read("data/uf.json")
     
     brazil %<>% 
         mutate(
