@@ -36,24 +36,218 @@ library(DT)
 ./text-statistics.sh
 ```
 
+# Introduction
+
+This report shows some analysis done in the corpora of text files scraped from the web.
+The source for this dataset was the [Corpora Helios Project](www.corpora.heliohost.org).
+In this dataset, 3 files were taken for further analysis.
+Namely, corpora text from _Blogs_, _News Sites_ and _Twitter_.
+
+The objective of this whole project is to create, at the end, a predictive typing engine able to suggest, with high accuracy, the next word intended to be written by the user. (well stablished products with this same objective are [Gboard](https://www.wikiwand.com/en/Gboard) and [SwiftKey](https://www.wikiwand.com/en/Microsoft_SwiftKey), for example).
+
+
+# Methods
+
+## Exploratory Data analysis
+
+### Making sense of the raw data
+
+Before we start to create an algorithm to predict the next word in a sentence, we need to examine the raw data we have to build our model on.
+
+I start showing you how the data actualy looks like:
+
+```{r}
+read_lines("data/Coursera-SwiftKey/final/en_US/en_US.blogs.txt", skip = 999, n_max = 1)
+read_lines("data/Coursera-SwiftKey/final/en_US/en_US.news.txt", skip = 999, n_max = 1)
+read_lines("data/Coursera-SwiftKey/final/en_US/en_US.twitter.txt", skip = 999, n_max = 1)
+```
+
+Those 3 lines are from `Blogs`, `News` and `Twitter` sources, respectively. Both are from the 1000th line in the respective files.
+
+Below I show you some basic informations about the raw data itself:
+
 ```{r}
 parsed_file_size <- read_csv("data/file_size_parsed.csv") 
-parsed_file_size %>% 
-    as_tibble() %>% 
-    mutate(only_value = as.numeric(str_extract(size, "\\d+\\.?\\d+?")),
-           expoent = case_when(
-               str_detect(size, "K") ~ 1E3,
-               str_detect(size, "M") ~ 1E6,
-               T ~ 0),
-           "size in bytes" = only_value * expoent) %>% 
-    select(-only_value, -expoent) %>% 
+parsed_line_count <- read_csv("data/line_count_parsed.csv") 
+
+parsed_line_count %>% 
+    filter(str_detect(file_name, ".txt$")) %>% 
+    rename(max_line_length = maximum_line_length) %>% 
+    mutate(size = num_of_bytes / (1E6)) %>% 
+    mutate(size = paste(round(size, 3), "Mb")) %>% 
+    select(num_of_lines:num_of_characters, max_line_length, num_of_bytes, size, file_name) %>% 
     datatable()
 
-parsed_line_count <- read_csv("data/line_count_parsed.csv") 
-parsed_line_count %>% 
-    datatable()
-    
 ```
+
+As we can see, even though `Twitter` is the smallest file in bytes, it has the largest number of lines.
+For sake of convenience, I plotted the same info below.
+
+```{r}
+parsed_line_count %>% 
+    filter(str_detect(file_name, ".txt$")) %>% 
+    mutate(file = case_when(
+        str_detect(file_name, "blog") ~ "Blog",
+        str_detect(file_name, "news") ~ "News",
+        str_detect(file_name, "twitter") ~ "Twitter"
+    )) %>% 
+    ggplot() +
+    geom_bar(aes(file, num_of_lines, fill = file), stat = "identity") +
+    labs(title = "Number of lines per file",
+         y = "File",
+         x = "Number of Lines") -> parsed_statistics_plot_lines
+
+parsed_line_count %>% 
+    filter(str_detect(file_name, ".txt$")) %>% 
+    mutate(file = case_when(
+        str_detect(file_name, "blog") ~ "Blog",
+        str_detect(file_name, "news") ~ "News",
+        str_detect(file_name, "twitter") ~ "Twitter"
+    )) %>% 
+    ggplot() +
+    geom_bar(aes(file, num_of_words, fill = file), stat = "identity") +
+    labs(title = "Number of words per file",
+         y = "File",
+         x = "Number of Words") -> parsed_statistics_plot_words
+
+parsed_line_count %>% 
+    filter(str_detect(file_name, ".txt$")) %>% 
+    mutate(file = case_when(
+        str_detect(file_name, "blog") ~ "Blog",
+        str_detect(file_name, "news") ~ "News",
+        str_detect(file_name, "twitter") ~ "Twitter"
+    )) %>% 
+    ggplot() +
+    geom_bar(aes(file, num_of_characters, fill = file), stat = "identity") +
+    labs(title = "Number of characters per file",
+         y = "File",
+         x = "Number of Characters") -> parsed_statistics_plot_characters 
+
+parsed_line_count %>% 
+    filter(str_detect(file_name, ".txt$")) %>% 
+    mutate(file = case_when(
+        str_detect(file_name, "blog") ~ "Blog",
+        str_detect(file_name, "news") ~ "News",
+        str_detect(file_name, "twitter") ~ "Twitter"
+    )) %>% 
+    ggplot() +
+    geom_bar(aes(file, num_of_characters, fill = file), stat = "identity") +
+    labs(title = "Number of bytes per file",
+         y = "File",
+         x = "Number of Bytes") -> parsed_statistics_plot_bytes
+
+((parsed_statistics_plot_lines | parsed_statistics_plot_bytes) / (parsed_statistics_plot_characters | parsed_statistics_plot_words))
+```
+
+Taking into account the very nature of the sources for this data, we obviously expect that `Twitter` will show some diverging characteristics from the other two.
+
+### Parsing the data
+
+Ok, we already have a sense of how the raw data looks like.
+But, how do we _begin_ to analyse it?
+In other words: How do we transform the data from this messy format to a more tidy one?
+
+Well, as we saw earlier, the raw data is quite large, and my computer wouldn't be able to parse it in `R`.
+As an alternative, I opted to parse it using `Bash`.
+You can see the code used to do this step in [this file at github](https://github.com/Cardosaum/data_science_specialization_jhu/blob/master/10_capstone/text-statistics.sh).
+
+But I'll resume the steps of the script below:
+
+  - for each source file:
+    - compute character count:
+      - grab characters, each one in a new line
+      - modify all strings to lower case
+      - count occurences of each character
+      - sort in descending order of occurence
+    - compute word count:
+      - grab words, each one in a new line
+      - modify all strings to lower case
+      - count occurences of each word
+      - sort in descending order of occurence
+      
+Using this bash script we ended up with this files:
+
+```{r}
+parsed_line_count %>% 
+    filter(str_detect(file_name, ".csv$")) %>% 
+    filter(str_detect(file_name, "ngram", negate = T)) %>% 
+    rename(max_line_length = maximum_line_length) %>% 
+    mutate(size = num_of_bytes / (1E6)) %>% 
+    mutate(size = paste(round(size, 3), "Mb")) %>% 
+    select(num_of_lines:num_of_characters, max_line_length, num_of_bytes, size, file_name) %>% 
+    datatable()
+```
+
+Wow, this is definitely more manageable!
+The size of the files we need to work with reduced drasticaly, and now we can import it into `R`.
+
+As before, I plot the same info in a more convenient way:
+
+```{r}
+parsed_line_count %>%
+    filter(str_detect(file_name, ".csv")) %>%
+    filter(str_detect(file_name, "ngram", negate = T)) %>%
+    mutate(file = case_when(
+        str_detect(file_name, "blog") ~ "Blog",
+        str_detect(file_name, "news") ~ "News",
+        str_detect(file_name, "twitter") ~ "Twitter"
+    )) %>%
+    ggplot() +
+    geom_bar(aes(file, num_of_lines, fill = file), stat = "identity") +
+    labs(title = "Number of lines per file",
+         y = "File",
+         x = "Number of Lines") -> parsed_statistics_plot_lines_csv
+
+parsed_line_count %>%
+    filter(str_detect(file_name, ".csv")) %>%
+    filter(str_detect(file_name, "ngram", negate = T)) %>%
+    mutate(file = case_when(
+        str_detect(file_name, "blog") ~ "Blog",
+        str_detect(file_name, "news") ~ "News",
+        str_detect(file_name, "twitter") ~ "Twitter"
+    )) %>%
+    ggplot() +
+    geom_bar(aes(file, num_of_words, fill = file), stat = "identity") +
+    labs(title = "Number of words per file",
+         y = "File",
+         x = "Number of Words") -> parsed_statistics_plot_words_csv
+
+parsed_line_count %>%
+    filter(str_detect(file_name, ".csv")) %>%
+    filter(str_detect(file_name, "ngram", negate = T)) %>%
+    mutate(file = case_when(
+        str_detect(file_name, "blog") ~ "Blog",
+        str_detect(file_name, "news") ~ "News",
+        str_detect(file_name, "twitter") ~ "Twitter"
+    )) %>%
+    ggplot() +
+    geom_bar(aes(file, num_of_characters, fill = file), stat = "identity") +
+    labs(title = "Number of characters per file",
+         y = "File",
+         x = "Number of Characters") -> parsed_statistics_plot_characters_csv
+
+parsed_line_count %>%
+    filter(str_detect(file_name, ".csv")) %>%
+    filter(str_detect(file_name, "ngram", negate = T)) %>%
+    mutate(file = case_when(
+        str_detect(file_name, "blog") ~ "Blog",
+        str_detect(file_name, "news") ~ "News",
+        str_detect(file_name, "twitter") ~ "Twitter"
+    )) %>%
+    ggplot() +
+    geom_bar(aes(file, num_of_characters, fill = file), stat = "identity") +
+    labs(title = "Number of bytes per file",
+         y = "File",
+         x = "Number of Bytes") -> parsed_statistics_plot_bytes_csv
+
+((parsed_statistics_plot_lines_csv | parsed_statistics_plot_bytes_csv) / (parsed_statistics_plot_characters_csv | parsed_statistics_plot_words_csv))
+```
+
+One more thing we need to pay attention is the fact that, because the data was collected from the web and is presented to us "_as is_", it could contain some bad words... 
+
+Before we go deeper in the model creation we need to remove this sort of data. (We definitely do *not* want to suggest bad words to our final users.)
+
+In the code below I process the data to a more tidy format:
 
 ```{r class.source = 'fold-show'}
 parsed_files <- list.files(pattern = "en_US.*\\.csv$", recursive = T)
@@ -111,6 +305,20 @@ if (file.exists(text_stats_binary_path)) {
 gc()
 ```
 
+If you paid attention to the last code chunk you will see that I computed the percentage of "prevalence" of characters and words in each file. 
+The reason is simple: we have files with different number of lines. 
+Any statistics that analyse this sort of data (number of lines) will be skewed due to this reason.
+However, if we compute percentages per file, the range for this variable will be the same for all (from `0` to `1`).
+
+Ok, I think this steps to process the data were enough.
+
+## Exploring the tidy data
+
+Fine, now we have the data in a way we can work with.
+Does it has some interesting things in it?
+
+Well, we could look to the most common characters in each file, or the words in it maybe...
+Below I reproduce the code to the following plots.
 
 ```{r, cache=T, class.source = 'fold-hide'}
 text_stats_df %>% 
@@ -167,6 +375,124 @@ text_stats_df %>%
     theme(axis.text.x = element_text(angle = 45)) +
     guides(fill = guide_legend(reverse = T)) -> charactes_bar
 ```
+
+Now, does the data show us something interesting if we plot the most common characters or words per file?
+
+```{r}
+(charactes_bar / wordOnly_bar)
+```
+
+Hum... It doesn't seem interesting.
+
+In the histogram of words we only see stopwords...
+Let's remove this stopwords and take another shot:
+
+```{r}
+wordOnly_bar_without_stopwords
+```
+
+Ok, now we clearly start to see some major differences in the composition of the dataframe.
+
+Take the percentage of `rt`, `lol`, `love` and `percent` as an example.
+
+
+## Extracting ngrams
+
+Proceeding in the project to create the model we need to extract ngrams from the data.
+
+Again, due to the large size of the raw data, and the limitations that my computer imposes, use `R` to extract ngrams is definitely not practical.
+For this task I opted to use `Rust`. 
+It's way faster than `R` and do not need to load the whole file at once to parse it.
+
+I forked a project in github that generate ngrams and modified it to my needs.
+Namely, accept `'` (apostrophe) as word constituent.
+Doing this, `I'm`, `I'd` and similar are counted as words as well.
+
+The code I used to generate the rust binary `ngrams` can be found at [github](https://github.com/Cardosaum/ngram-tools).
+
+Here are a demonstration of the final parsed ngrams. I show the first 5 lines of each file, colored by string:
+
+```{r, class.source = 'fold-hide', echo=F, results=F}
+ngrams_files <- list.files(pattern = "ngrams.*\\.csv$", recursive = T) %>% sort
+for (i in ngrams_files) {
+    print(glue::glue("file: {i}"))
+    print(read_lines(i, skip = 1, n_max = 5))
+    cat("\n")
+}
+
+for (f in ngrams_files) {
+    if (exists("ngrams_df")) {
+        # print("Yes")
+        # print(f)
+        ngrams_df %<>% full_join(read_csv(f, n_max = 5) %>% mutate(file = paste(f)))
+    } else {
+        # print("No")
+        # print(f)
+        ngrams_df <- read_csv(f, n_max = 5) %>% mutate(file = paste(f))
+    }
+}
+# rm(text_stats_df)
+ngrams_df %<>%
+    mutate(file = case_when(
+        str_detect(file, "1grams.*blog") ~ "1gram_blog",
+        str_detect(file, "2grams.*blog") ~ "2gram_blog",
+        str_detect(file, "3grams.*blog") ~ "3gram_blog",
+        str_detect(file, "4grams.*blog") ~ "4gram_blog",
+        str_detect(file, "5grams.*blog") ~ "5gram_blog",
+        str_detect(file, "6grams.*blog") ~ "6gram_blog",
+        str_detect(file, "7grams.*blog") ~ "7gram_blog",
+        str_detect(file, "1grams.*news") ~ "1gram_news",
+        str_detect(file, "2grams.*news") ~ "2gram_news",
+        str_detect(file, "3grams.*news") ~ "3gram_news",
+        str_detect(file, "4grams.*news") ~ "4gram_news",
+        str_detect(file, "5grams.*news") ~ "5gram_news",
+        str_detect(file, "6grams.*news") ~ "6gram_news",
+        str_detect(file, "7grams.*news") ~ "7gram_news",
+        str_detect(file, "1grams.*twitter") ~ "1gram_twitter",
+        str_detect(file, "2grams.*twitter") ~ "2gram_twitter",
+        str_detect(file, "3grams.*twitter") ~ "3gram_twitter",
+        str_detect(file, "4grams.*twitter") ~ "4gram_twitter",
+        str_detect(file, "5grams.*twitter") ~ "5gram_twitter",
+        str_detect(file, "6grams.*twitter") ~ "6gram_twitter",
+        str_detect(file, "7grams.*twitter") ~ "7gram_twitter",
+        TRUE ~ "WRONG")) %>%
+    mutate(across(where(is.character), as.factor)) %>%
+    rename(
+        num    = count,
+        char   = character,
+        origin = file) %>% 
+    mutate(ngram = str_extract(origin, "\\d"),
+           type  = str_extract(origin, "_\\w+")) %>% 
+    mutate(type  = str_remove(type, "_"))
+
+# filter out bad words
+bad_words <- read_lines("data/bad_words_list.txt")
+ngrams_df %<>%
+    filter(!(char %in% bad_words))
+```
+
+```{r}
+for (i in unique(ngrams_df$ngram)) {
+    ngrams_df %>% 
+        filter(ngram == i) %>% 
+        ggplot() +
+        geom_bar(aes(char, num, fill = char), stat = "identity") +
+        facet_wrap(~ origin) +
+        coord_flip() +
+        labs(title = glue::glue("Comparison of top 5 ngrams for each file - ({i}gram)"),
+             x = "Count of ngram per file (if in top 5 for this file)",
+             y = glue::glue("{i}gram text")) +
+        theme(axis.text.x = element_text(angle = 45)) +
+        guides(fill = guide_legend(reverse = T)) -> tmp_plot
+    print(tmp_plot)
+}
+```
+
+
+
+
+## Thoghts about the best algotithm to suggest the next word
+
 
 ```{r}
 wordOnly_bar
