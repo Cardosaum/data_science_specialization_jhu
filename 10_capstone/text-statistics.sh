@@ -9,8 +9,8 @@ echo "${sourceFiles}" | while read -r file; do
     fileBase=$(basename --suffix=.txt "${file}")
     outBase="count_${fileBase}"
     echo "Processing file: $(basename ${file})"
-    [[ ! -f "${fileDir}/character_${outBase}.csv" ]] && rg --text "\w" -INo "${file}" | tr "[:upper:]" "[:lower:]" | sort | uniq -c | perl -pe 's/^\s+//g' | perl -pe 's/\s+/,/' | sort -rg | sed '1s/^/count,character\n/' > "${fileDir}/character_${outBase}.csv" &
-    [[ ! -f "${fileDir}/wordOnly_${outBase}.csv" ]] && rg --text "(\w+'\w+)|\w+" -INo "${file}" | tr "[:upper:]" "[:lower:]" | sort | uniq -c | perl -pe 's/^\s+//g' | perl -pe 's/\s+/,/' | sort -rg | sed '1s/^/count,character\n/' > "${fileDir}/wordOnly_${outBase}.csv" 
+    [[ ! -f "${fileDir}/character_${outBase}.csv" ]] && rg --text "\w" -INo "${file}" | rg -v "\d*" | tr "[:upper:]" "[:lower:]" | sort | uniq -c | perl -pe 's/^\s+//g' | perl -pe 's/\s+/,/' | sort -rg | sed '1s/^/count,character\n/' > "${fileDir}/character_${outBase}.csv" &
+    [[ ! -f "${fileDir}/wordOnly_${outBase}.csv" ]] && rg --text "(\w+'\w+)|\w+" -INo "${file}" | rg -v "\d*" | tr "[:upper:]" "[:lower:]" | sort | uniq -c | perl -pe 's/^\s+//g' | perl -pe 's/\s+/,/' | sort -rg | sed '1s/^/count,character\n/' > "${fileDir}/wordOnly_${outBase}.csv"
     # [[ ! -f "${fileDir}/digitOnly_${outBase}.csv" ]] && rg --text "\d+" -INo "${file}" | sort | uniq -c | perl -pe 's/^\s+//g' | perl -pe 's/\s+/,/' | sed '1s/^/count,character\n/' > "${fileDir}/digitOnly_${outBase}.csv" &
     # [[ ! -f "${fileDir}/wordAndDigit_${outBase}.csv" ]] && rg --text "[\w'\d]+" -INo "${file}" | sort | uniq -c | perl -pe 's/^\s+//g' | perl -pe 's/\s+/,/' | sed '1s/^/count,character\n/' > "${fileDir}/wordAndDigit_${outBase}.csv" &
     # [[ ! -f "${fileDir}/wordAndDigitWithPontuation_${outBase}.csv" ]] && rg --text "\S+" -INo "${file}" | sort | uniq -c | perl -pe 's/^\s+//g' | perl -pe 's/\s+/,/' | sed '1s/^/count,character\n/' > "${fileDir}/wordAndDigitWithPontuation_${outBase}.csv"
