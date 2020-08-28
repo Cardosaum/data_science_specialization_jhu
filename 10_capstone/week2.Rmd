@@ -1,0 +1,179 @@
+---
+title: "Capstone" 
+subtitle: "Final project for \"Data Science Specialization Capstone\" course by John Hopkins University"
+author: "Matheus Cardoso"
+date: "`r format(Sys.time(), '%F')`"
+output: 
+  html_document: 
+    code_folding: hide
+    fig_caption: yes
+    fig_width: 10
+    fig_height: 6
+    highlight: zenburn
+    keep_md: yes
+    theme: simplex
+    toc: yes
+    number_sections: yes
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=TRUE, echo=F}
+knitr::opts_chunk$set(echo = TRUE, include = TRUE, cache = TRUE, warning = FALSE, message = FALSE)
+```
+
+```{r load_libs}
+library(tidyverse)
+library(magrittr)
+library(forcats)
+library(patchwork)
+library(knitr)
+library(kableExtra)
+library(DT)
+```
+
+```{bash, echo=T, results=F}
+./text-statistics.sh
+```
+
+```{r}
+parsed_file_size <- read_csv("data/file_size_parsed.csv") 
+parsed_file_size %>% 
+    as_tibble() %>% 
+    mutate(only_value = as.numeric(str_extract(size, "\\d+\\.?\\d+?")),
+           expoent = case_when(
+               str_detect(size, "K") ~ 1E3,
+               str_detect(size, "M") ~ 1E6,
+               T ~ 0),
+           "size in bytes" = only_value * expoent) %>% 
+    select(-only_value, -expoent) %>% 
+    datatable()
+
+parsed_line_count <- read_csv("data/line_count_parsed.csv") 
+parsed_line_count %>% 
+    datatable()
+    
+```
+
+```{r class.source = 'fold-show'}
+parsed_files <- list.files(pattern = "en_US.*\\.csv$", recursive = T)
+parsed_files %<>% str_detect("ngram", negate = T) %>% 
+    parsed_files[.]
+text_stats_binary_path <- "data/text_stats.rds"
+if (file.exists(text_stats_binary_path)) {
+    text_stats_df <- read_rds(text_stats_binary_path)
+} else {
+    for (f in parsed_files) {
+        if (exists("text_stats_df")) {
+            print("Yes")
+            print(f)
+            text_stats_df %<>% full_join(read_csv(f) %>% mutate(file = paste(f)))
+        } else {
+            print("No")
+            print(f)
+            text_stats_df <- read_csv(f) %>% mutate(file = paste(f))
+        }
+    }
+    # rm(text_stats_df)
+    text_stats_df %<>%
+        mutate(file = case_when(
+            str_detect(file, "character.*blog") ~ "characters_blog",
+            str_detect(file, "character.*news") ~ "characters_news",
+            str_detect(file, "character.*twitter") ~ "characters_twitter",
+            str_detect(file, "wordOnly.*blog") ~ "wordOnly_blog",
+            str_detect(file, "wordOnly.*news") ~ "wordOnly_news",
+            str_detect(file, "wordOnly.*twitter") ~ "wordOnly_twitter",
+            TRUE ~ "WRONG")) %>%
+        mutate(across(where(is.character), as.factor)) %>%
+        rename(
+            num    = count,
+            char   = character,
+            origin = file)
+
+    # filter out bad words
+    bad_words <- read_lines("data/bad_words_list.txt")
+    text_stats_df %<>%
+        filter(!(char %in% bad_words))
+    
+    text_stats_df %<>%
+        ungroup() %>%
+        group_by(origin) %>%
+        summarise(total = sum(num)) %>%
+        full_join(text_stats_df, by = "origin") %>%
+        group_by(origin) %>%
+        mutate(percent = num / total) %>%
+        arrange(-percent) %>%
+        write_rds("data/text_stats.rds")
+}
+```
+
+```{r, echo=F, results=F}
+gc()
+```
+
+
+```{r, cache=T, class.source = 'fold-hide'}
+text_stats_df %>% 
+    filter(str_detect(origin, "wordOnly")) %>% 
+    arrange(desc(percent)) %>% 
+    slice_head(n = 10) -> selected_words
+
+text_stats_df %>% 
+    filter(char %in% selected_words$char, str_detect(origin, "wordOnly")) %>% 
+    group_by(origin) %>% 
+    mutate(char = fct_reorder(char, percent)) %>%
+    ggplot() +
+    geom_bar(aes(char, percent, fill = char), stat = "identity") +
+    facet_wrap(~ origin) +
+    coord_flip() +
+    labs(title = "Count of Words per File Origin",
+         y = "X% of file is composed by this word",
+         x = "Words") +
+    guides(fill = guide_legend(reverse = T)) -> wordOnly_bar
+
+text_stats_df %>% 
+    filter(!(char %in% stopwords::data_stopwords_stopwordsiso$en), str_detect(origin, "wordOnly")) %>% 
+    arrange(desc(percent)) %>% 
+    filter(str_detect(char, "\\d", negate = T)) %>% 
+    slice_head(n = 10) -> selected_words_without_stopwords
+
+text_stats_df %>% 
+    filter(char %in% selected_words_without_stopwords$char, str_detect(origin, "wordOnly")) %>% 
+    group_by(origin) %>% 
+    mutate(char = fct_reorder(char, percent)) %>%
+    ggplot() +
+    geom_bar(aes(char, percent, fill = char), stat = "identity") +
+    facet_wrap(~ origin) +
+    coord_flip() +
+    labs(title = "Count of Words per File Origin (without stopwords)",
+         y = "X% of file is composed by this word",
+         x = "Words") +
+    guides(fill = guide_legend(reverse = T)) -> wordOnly_bar_without_stopwords
+
+
+text_stats_df %>%
+    filter(str_detect(origin, "characters")) %>%
+    slice_head(n = 10) %>%
+    ungroup() %>%
+    mutate(char = fct_reorder(char, percent)) %>%
+    group_by(origin) %>%
+    ggplot() +
+    geom_bar(aes(char, percent, fill = char), stat = "identity") +
+    facet_wrap(~ origin) +
+    coord_flip() +
+    labs(title = "Count of Letters per File Origin",
+         y = "X% of file is composed by this letter",
+         x = "Letters") +
+    theme(axis.text.x = element_text(angle = 45)) +
+    guides(fill = guide_legend(reverse = T)) -> charactes_bar
+```
+
+```{r}
+wordOnly_bar
+
+wordOnly_bar_without_stopwords
+
+charactes_bar
+```
+
+
