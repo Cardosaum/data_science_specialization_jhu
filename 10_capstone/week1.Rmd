@@ -1,0 +1,73 @@
+---
+title: "Capstone" 
+subtitle: "Final project for \"Data Science Specialization Capstone\" course by John Hopkins University"
+author: "Matheus Cardoso"
+date: "`r format(Sys.time(), '%F')`"
+output: 
+  html_document: 
+    fig_caption: yes
+    fig_width: 10
+    fig_height: 6
+    highlight: zenburn
+    keep_md: yes
+    theme: simplex
+    toc: yes
+    number_sections: yes
+    code_folding: hide
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE, include = TRUE, cache = TRUE, warning = FALSE, message = FALSE)
+```
+
+```{r load_libs}
+library(tidyverse)
+library(magrittr)
+library(forcats)
+library(patchwork)
+```
+
+### Getting Data
+
+```{r get_data}
+data_path          <- "./data"
+df_url <- "https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip"
+df_file <- file.path(data_path, "Coursera-SwiftKey.zip")
+df_unzip_dir <- file.path(data_path, "Coursera-SwiftKey")
+
+if (!dir.exists(data_path)){
+    dir.create(data_path)
+}
+
+if (!file.exists(df_file)){
+    download.file(df_url, df_file, method = "curl")
+    unzip(df_file, exdir = df_unzip_dir)
+}
+```
+
+```{r}
+wordOnly <- list.files(pattern = "wordOnly_count_en_US", recursive = T) %>% sort
+woblog_path    <- wordOnly[1]
+wonews_path    <- wordOnly[2]
+wotwitter_path <- wordOnly[3]
+woblog    <- read_csv(woblog_path)
+wonews    <- read_csv(wonews_path)
+wotwitter <- read_csv(wotwitter_path)
+woblog %>% 
+    arrange(-count) %>% 
+    slice_head(n=10) %>% 
+    mutate(origin = "Blog") %>% 
+    full_join(mutate(slice_head(arrange(wonews, -count), n = 10), origin = "News")) %>% 
+    full_join(mutate(slice_head(arrange(wotwitter, -count), n = 10), origin = "Twitter")) %>% 
+    mutate(character = fct_reorder(character, count)) %>% 
+    ggplot() +
+    geom_bar(aes(character, count, fill = character), stat="identity") +
+    labs(title = "All") +
+    coord_flip() +
+    facet_wrap(~ origin) +
+    guides(fill = guide_legend(reverse = T))
+
+```
+
