@@ -9,7 +9,7 @@ echo "${sourceFiles}" | while read -r file; do
     fileBase=$(basename --suffix=.txt "${file}")
     outBase="count_${fileBase}"
     echo "Processing file: $(basename ${file})"
-    [[ ! -f "${fileDir}/character_${outBase}.csv" ]] && rg --text "\w" -INo "${file}" | tr "[:upper:]" "[:lower:]" | sort | uniq -c | perl -pe 's/^\s+//g' | perl -pe 's/\s+/,/' | sort -rg | rg -vwF -f data/bad_words_list.txt | sed '1s/^/count,character\n/' > "${fileDir}/character_${outBase}.csv" &
+    [[ ! -f "${fileDir}/character_${outBase}.csv" ]] && rg --text "\w" -INo "${file}" | tr "[:upper:]" "[:lower:]" | sort | uniq -c | perl -pe 's/^\s+//g' | perl -pe 's/\s+/,/' | sort -rg | rg -vwF -f data/bad_words_list.txt | sed '1s/^/count,character\n/' > "${fileDir}/character_${outBase}.csv"
     [[ ! -f "${fileDir}/wordOnly_${outBase}.csv" ]] && rg --text "(\w+'\w+)|\w+" -INo "${file}" | tr "[:upper:]" "[:lower:]" | sort | uniq -c | perl -pe 's/^\s+//g' | perl -pe 's/\s+/,/' | sort -rg | rg -vwF -f data/bad_words_list.txt | sed '1s/^/count,character\n/' > "${fileDir}/wordOnly_${outBase}.csv"
     # [[ ! -f "${fileDir}/digitOnly_${outBase}.csv" ]] && rg --text "\d+" -INo "${file}" | sort | uniq -c | perl -pe 's/^\s+//g' | perl -pe 's/\s+/,/' | sed '1s/^/count,character\n/' > "${fileDir}/digitOnly_${outBase}.csv" &
     # [[ ! -f "${fileDir}/wordAndDigit_${outBase}.csv" ]] && rg --text "[\w'\d]+" -INo "${file}" | sort | uniq -c | perl -pe 's/^\s+//g' | perl -pe 's/\s+/,/' | sed '1s/^/count,character\n/' > "${fileDir}/wordAndDigit_${outBase}.csv" &
@@ -21,6 +21,20 @@ echo "${sourceFiles}" | while read -r file; do
     [[ ! -f "${fileDir}/ngrams_5grams_${outBase}.csv" ]] && ./ngrams -n5 -sn "${file}" | rg "\s+(\d+)\s+(([\w']+\s?)+)" -r '$1,$2' | rg -vwF -f data/bad_words_list.txt | sed '1s/^/count,character\n/' > "${fileDir}/ngrams_5grams_${outBase}.csv"
     [[ ! -f "${fileDir}/ngrams_6grams_${outBase}.csv" ]] && ./ngrams -n6 -sn "${file}" | rg "\s+(\d+)\s+(([\w']+\s?)+)" -r '$1,$2' | rg -vwF -f data/bad_words_list.txt | sed '1s/^/count,character\n/' > "${fileDir}/ngrams_6grams_${outBase}.csv"
     [[ ! -f "${fileDir}/ngrams_7grams_${outBase}.csv" ]] && ./ngrams -n7 -sn "${file}" | rg "\s+(\d+)\s+(([\w']+\s?)+)" -r '$1,$2' | rg -vwF -f data/bad_words_list.txt | sed '1s/^/count,character\n/' > "${fileDir}/ngrams_7grams_${outBase}.csv"
+
+    # filter stopwords from ngrams
+    ngramFiles=$(fd --no-ignore -a "ngrams_.*en.*" -e csv | rg -v "without_stopwords" | rg -v "filtered" | rg "${fileBase}")
+    echo "${ngramFiles}" | while read -r ngram; do
+        xgram=$(echo "${ngram}" | rg -o "\dgrams")
+        nonstopwordngramfile="${fileDir}/ngrams_${xgram}_without_stopwords_${outBase}.csv"
+        [[ ! -f "${nonstopwordngramfile}" ]] && rg -vwF -f data/stopwords.txt "${ngram}" > "${nonstopwordngramfile}"
+
+        # filter ngrams bigger values
+        mlrbiggerthanfive=$"${fileDir}/ngrams_filtered_${xgram}_${outBase}.csv"
+        [[ ! -f "${mlrbiggerthanfive}" ]] && mlr --csv filter '$count >= 5' "${ngram}" > "${mlrbiggerthanfive}"
+
+    done
+
 
 done
 
