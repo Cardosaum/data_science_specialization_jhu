@@ -1,7 +1,7 @@
 ---
-title: "Capstone" 
+title: "Predictive Typing Engine Project" 
 subtitle: "Final project for \"Data Science Specialization Capstone\" course by John Hopkins University"
-author: "Matheus Cardoso"
+author: "Matheus C."
 date: "`r format(Sys.time(), '%F')`"
 output: 
   html_document: 
@@ -489,17 +489,15 @@ for (i in unique(ngrams_df$ngram)) {
 ```
 
 
+## Thoughts about the best algorithm to suggest the next word
 
+As a final comment, I want to explain how I'm thinking to implement the model.
 
-## Thoghts about the best algotithm to suggest the next word
+Two possible alternatives are use the [Katz's back-off model](https://www.wikiwand.com/en/Katz%27s_back-off_model), or a [hash table](https://stackoverflow.com/a/18728446/10719703).
+ For now, I'll need to implement this two models and test which one has the best trade-off between performance in computating the results and accuracy.
 
+And...
 
-```{r}
-wordOnly_bar
+That's it! :)
 
-wordOnly_bar_without_stopwords
-
-charactes_bar
-```
-
-
+Thanks for the attention.
