@@ -6,7 +6,7 @@ library(magrittr)
 read_ngrams <- function(list_ngrams) {
     for (f in sort(list_ngrams)) {
         if (str_detect(f, "1gram")) {
-            print(glue("skipping file: {f}"))
+            # print(glue("skipping file: {f}"))
             next
             }
         if (!exists("df_ngrams")) {
@@ -40,12 +40,12 @@ search_format <- function(input_text) {glue("{input_text} ")}
 
 get_search_df <- function(ngrams_df, input_text) {
     it <- input_format(input_text)
-    how_many_loops <- min(input_length(it), 7)
+    how_many_loops <- min(input_length(it), 7, na.rm = T)
     for (i in seq_len(how_many_loops)) {
         stext <- search_format(ngram_text(it, i))
         if (!exists("search_df")) {
-            print(i)
-            print(stext)
+            # print(i)
+            # print(stext)
             ngrams_df %>% 
                 filter(xgram == (i + 1)) %>%
                 filter(stri_startswith_fixed(character, stext)) %>% 
@@ -56,8 +56,8 @@ get_search_df <- function(ngrams_df, input_text) {
                 slice_head(n = 1) %>% 
                 arrange(-total) -> search_df
         } else {
-            print(i)
-            print(stext)
+            # print(i)
+            # print(stext)
             ngrams_df %>% 
                 filter(xgram == (i + 1)) %>%
                 filter(stri_startswith_fixed(character, stext)) %>% 
@@ -76,8 +76,8 @@ get_search_df <- function(ngrams_df, input_text) {
         mutate(xgram = as.integer(xgram),
                total = as.integer(total))
     if (nrow(search_df) < 1) {
-        print("No Match found, loading default suggestion")
-        search_df <- read_rds("data/suggest_this.rds") %>% 
+        # print("No Match found, loading default suggestion")
+        search_df <- read_rds("shiny_data/suggest_this.rds") %>% 
             mutate(total = count,
                    xgram = 1)
     }
@@ -85,8 +85,10 @@ get_search_df <- function(ngrams_df, input_text) {
 }
 
 compute_score <- function(ngrams_df) {
-    ngrams_df %>% 
+    final_df <- 
+        ngrams_df %>% 
         ungroup() %>% 
+        group_by(xgram) %>% 
         mutate(score = (exp(xgram) * (total / sum(total)))) %>% 
         arrange(desc(score)) %>% 
         mutate(character = str_extract(character, "\\s?[\\w']+$")) %>% 
@@ -99,7 +101,10 @@ compute_score <- function(ngrams_df) {
         slice_head(n = 1) %>% 
         ungroup() %>% 
         arrange(desc(score)) %>% 
-        mutate(score = (exp(score) / (exp(score) + 1))) -> final_df
+        mutate(score = (exp(score) / (exp(score) + 1)))
     final_df
 }
-all_ngrams <- read_rds("data/all_ngrams.rds")
+
+if (!exists("all_ngrams")) {
+    all_ngrams <- read_rds("shiny_data/all_ngrams.rds")
+}
